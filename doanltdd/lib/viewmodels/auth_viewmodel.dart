@@ -17,7 +17,10 @@ class AuthViewModel extends ChangeNotifier {
     _authService.authStateChanges.listen((firebaseUser) async {
       user = firebaseUser;
       if (firebaseUser != null) {
-        userModel = await _authService.getUserData(firebaseUser.uid);
+        // Chỉ load lại nếu chưa có userModel (tránh conflict với login())
+        if (userModel == null) {
+          userModel = await _authService.getUserData(firebaseUser.uid);
+        }
       } else {
         userModel = null;
       }
@@ -32,6 +35,7 @@ class AuthViewModel extends ChangeNotifier {
       isLoading = true;
       notifyListeners();
       userModel = await _authService.login(email: email, password: password);
+      user = _authService.currentUser;
       return true;
     } on FirebaseAuthException catch (e) {
       errorMessage = _mapError(e.code);
@@ -53,6 +57,7 @@ class AuthViewModel extends ChangeNotifier {
       userModel = await _authService.register(
         email: email, password: password, fullName: fullName, role: role,
       );
+      user = _authService.currentUser;
       return true;
     } on FirebaseAuthException catch (e) {
       errorMessage = _mapError(e.code);
@@ -66,6 +71,7 @@ class AuthViewModel extends ChangeNotifier {
   Future<void> logout() async {
     await _authService.logout();
     userModel = null;
+    user = null;
     notifyListeners();
   }
 
@@ -75,7 +81,8 @@ class AuthViewModel extends ChangeNotifier {
       case 'wrong-password': return 'Sai mật khẩu';
       case 'user-not-found': return 'Tài khoản không tồn tại';
       case 'weak-password': return 'Mật khẩu quá yếu (tối thiểu 6 ký tự)';
-      default: return 'Đã có lỗi xảy ra';
+      case 'invalid-credential': return 'Email hoặc mật khẩu không đúng';
+      default: return 'Đã có lỗi xảy ra ($code)';
     }
   }
 }

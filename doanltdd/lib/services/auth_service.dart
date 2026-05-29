@@ -7,6 +7,9 @@ class AuthService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
   Stream<User?> get authStateChanges => _auth.authStateChanges();
+  
+  // Thêm getter này
+  User? get currentUser => _auth.currentUser;
 
   Future<UserModel?> getUserData(String uid) async {
     final doc = await _db.collection('users').doc(uid).get();

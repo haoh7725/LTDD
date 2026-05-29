@@ -102,10 +102,10 @@ class MyApplicationsScreen extends StatelessWidget {
                         padding: const EdgeInsets.symmetric(
                             horizontal: 10, vertical: 4),
                         decoration: BoxDecoration(
-                          color: _statusColor(status).withOpacity(0.15),
+                          color: _statusColor(status).withValues(alpha: 0.15), // fixed
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(
-                              color: _statusColor(status).withOpacity(0.5)),
+                              color: _statusColor(status).withValues(alpha: 0.5)), // fixed
                         ),
                         child: Text(
                           _statusLabel(status),

@@ -4,7 +4,6 @@ import '../models/job_model.dart';
 class JobService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
-  // Dành cho ứng viên: lọc theo category
   Stream<List<JobModel>> getJobs({String? category}) {
     Query query = _db.collection('jobs').orderBy('createdAt', descending: true);
     if (category != null && category.isNotEmpty) {
@@ -14,11 +13,10 @@ class JobService {
           .orderBy('createdAt', descending: true);
     }
     return query.snapshots().map((snap) => snap.docs
-        .map((d) => JobModel.fromMap(d.data() as Map<String, dynamic>, d.id))
+        .map((d) => JobModel.fromMap(d.data() as Map<String, dynamic>, d.id)) // cast needed here for untyped Query
         .toList());
   }
 
-  // Dành cho employer: chỉ lấy job của mình — query trực tiếp, không filter client
   Stream<List<JobModel>> getJobsByEmployer(String employerId) {
     return _db
         .collection('jobs')
@@ -26,7 +24,7 @@ class JobService {
         .orderBy('createdAt', descending: true)
         .snapshots()
         .map((snap) => snap.docs
-            .map((d) => JobModel.fromMap(d.data() as Map<String, dynamic>, d.id))
+            .map((d) => JobModel.fromMap(d.data(), d.id)) // fixed: removed unnecessary cast
             .toList());
   }
 
@@ -40,7 +38,6 @@ class JobService {
 
   Future<void> applyJob(
       String jobId, String candidateId, String candidateName) async {
-    // Kiểm tra đã ứng tuyển chưa
     final existing = await _db
         .collection('applications')
         .where('jobId', isEqualTo: jobId)

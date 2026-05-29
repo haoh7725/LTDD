@@ -21,9 +21,8 @@ class JobDetailScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header card
             Card(
-              color: const Color(0xFF1E88E5).withOpacity(0.05),
+              color: const Color(0xFF1E88E5).withValues(alpha: 0.05), // fixed
               child: Padding(
                 padding: const EdgeInsets.all(16),
                 child: Row(
@@ -68,11 +67,9 @@ class JobDetailScreen extends StatelessWidget {
             ]),
             const SizedBox(height: 16),
             const Text('Mô tả công việc',
-                style:
-                    TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
-            Text(job.description,
-                style: const TextStyle(height: 1.6)),
+            Text(job.description, style: const TextStyle(height: 1.6)),
             const SizedBox(height: 28),
             ElevatedButton.icon(
               icon: const Icon(Icons.send),
@@ -142,8 +139,7 @@ class JobDetailScreen extends StatelessWidget {
         children: [
           Icon(icon, size: 20, color: color),
           const SizedBox(width: 8),
-          Text('$label: ',
-              style: const TextStyle(fontWeight: FontWeight.w500)),
+          Text('$label: ', style: const TextStyle(fontWeight: FontWeight.w500)),
           Expanded(child: Text(value)),
         ],
       ),

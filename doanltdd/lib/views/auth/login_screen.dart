@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../viewmodels/auth_viewmodel.dart';
+import '../candidate/candidate_home_screen.dart';
+import '../employer/employer_home_screen.dart';
+import '../admin/admin_home_screen.dart';
 import 'register_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -27,7 +30,24 @@ class _LoginScreenState extends State<LoginScreen> {
     if (!_formKey.currentState!.validate()) return;
     final auth = context.read<AuthViewModel>();
     final ok = await auth.login(_emailCtrl.text.trim(), _passCtrl.text);
-    if (!ok && mounted) {
+    if (!mounted) return;
+    if (ok) {
+      // Navigate dựa theo role
+      Widget next;
+      switch (auth.role) {
+        case 'employer':
+          next = const EmployerHomeScreen();
+          break;
+        case 'admin':
+          next = const AdminHomeScreen();
+          break;
+        default:
+          next = const CandidateHomeScreen();
+      }
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => next),
+      );
+    } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(auth.errorMessage ?? 'Lỗi đăng nhập')),
       );

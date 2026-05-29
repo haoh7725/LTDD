@@ -133,7 +133,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             width: _role == 'candidate' ? 2 : 1,
                           ),
                           color: _role == 'candidate'
-                              ? const Color(0xFF1E88E5).withOpacity(0.05)
+                              ? const Color(0xFF1E88E5).withValues(alpha: 0.05) // fixed
                               : null,
                         ),
                         child: Column(
@@ -169,7 +169,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             width: _role == 'employer' ? 2 : 1,
                           ),
                           color: _role == 'employer'
-                              ? Colors.green.withOpacity(0.05)
+                              ? Colors.green.withValues(alpha: 0.05) // fixed
                               : null,
                         ),
                         child: Column(

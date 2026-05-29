@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../firebase_options.dart';
 import '../../viewmodels/auth_viewmodel.dart';
 import '../auth/login_screen.dart';
 import '../candidate/candidate_home_screen.dart';
@@ -37,7 +36,6 @@ class _SplashScreenState extends State<SplashScreen>
     await Future.delayed(const Duration(seconds: 2));
     if (!mounted) return;
     final auth = context.read<AuthViewModel>();
-    // Chờ auth load xong
     while (auth.isLoading) {
       await Future.delayed(const Duration(milliseconds: 100));
     }
@@ -60,7 +58,7 @@ class _SplashScreenState extends State<SplashScreen>
     Navigator.of(context).pushReplacement(
       PageRouteBuilder(
         pageBuilder: (_, __, ___) => next,
-        transitionsBuilder: (_, animation, __, child) =>
+        transitionsBuilder: (_, animation, _, child) =>  // fixed: unnecessary underscores
             FadeTransition(opacity: animation, child: child),
         transitionDuration: const Duration(milliseconds: 500),
       ),
@@ -93,7 +91,7 @@ class _SplashScreenState extends State<SplashScreen>
                     borderRadius: BorderRadius.circular(24),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.2),
+                        color: Colors.black.withValues(alpha: 0.2), // fixed: withOpacity → withValues
                         blurRadius: 20,
                         offset: const Offset(0, 8),
                       )

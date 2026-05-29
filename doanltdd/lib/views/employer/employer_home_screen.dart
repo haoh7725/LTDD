@@ -21,7 +21,7 @@ class EmployerHomeScreen extends StatelessWidget {
           children: [
             const Text('Nhà tuyển dụng',
                 style: TextStyle(fontWeight: FontWeight.bold)),
-            Text('${auth.userModel?.fullName ?? ''}',
+            Text(auth.userModel?.fullName ?? '',  // fixed: removed unnecessary string interpolation
                 style: const TextStyle(
                     fontSize: 12, fontWeight: FontWeight.normal)),
           ],
@@ -39,7 +39,6 @@ class EmployerHomeScreen extends StatelessWidget {
           ),
         ],
       ),
-      // Dùng getJobsByEmployer — query server-side, không filter client
       body: StreamBuilder<List<JobModel>>(
         stream: jobVM.getJobsByEmployer(auth.userModel!.uid),
         builder: (context, snap) {
@@ -267,7 +266,7 @@ class _PostJobSheetState extends State<_PostJobSheet> {
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
-                value: _category,
+                initialValue: _category, // fixed: was deprecated `value`
                 decoration:
                     const InputDecoration(labelText: 'Ngành nghề'),
                 items: _categories
