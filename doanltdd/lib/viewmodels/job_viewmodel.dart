@@ -19,6 +19,11 @@ class JobViewModel extends ChangeNotifier {
     );
   }
 
+  // Dành riêng cho employer — query server-side
+  Stream<List<JobModel>> getJobsByEmployer(String employerId) {
+    return _jobService.getJobsByEmployer(employerId);
+  }
+
   void setCategory(String category) {
     selectedCategory = category;
     notifyListeners();
@@ -28,7 +33,12 @@ class JobViewModel extends ChangeNotifier {
     await _jobService.addJob(job);
   }
 
-  Future<void> applyJob(String jobId, String candidateId, String candidateName) async {
+  Future<void> deleteJob(String jobId) async {
+    await _jobService.deleteJob(jobId);
+  }
+
+  Future<void> applyJob(
+      String jobId, String candidateId, String candidateName) async {
     await _jobService.applyJob(jobId, candidateId, candidateName);
   }
 
@@ -40,7 +50,8 @@ class JobViewModel extends ChangeNotifier {
     return _jobService.getApplicationsByJob(jobId);
   }
 
-  Future<void> updateApplicationStatus(String applicationId, String status) async {
+  Future<void> updateApplicationStatus(
+      String applicationId, String status) async {
     await _jobService.updateApplicationStatus(applicationId, status);
   }
 }

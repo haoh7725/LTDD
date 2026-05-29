@@ -16,7 +16,16 @@ class EmployerHomeScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Nhà tuyển dụng'),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Nhà tuyển dụng',
+                style: TextStyle(fontWeight: FontWeight.bold)),
+            Text('${auth.userModel?.fullName ?? ''}',
+                style: const TextStyle(
+                    fontSize: 12, fontWeight: FontWeight.normal)),
+          ],
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.chat),
@@ -30,35 +39,107 @@ class EmployerHomeScreen extends StatelessWidget {
           ),
         ],
       ),
+      // Dùng getJobsByEmployer — query server-side, không filter client
       body: StreamBuilder<List<JobModel>>(
-        stream: jobVM.getJobs(),
+        stream: jobVM.getJobsByEmployer(auth.userModel!.uid),
         builder: (context, snap) {
           if (snap.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
-          final jobs = (snap.data ?? [])
-              .where((j) => j.employerId == auth.userModel?.uid)
-              .toList();
+          final jobs = snap.data ?? [];
           if (jobs.isEmpty) {
-            return const Center(child: Text('Chưa có tin tuyển dụng nào'));
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.work_off_outlined,
+                      size: 64, color: Colors.grey.shade400),
+                  const SizedBox(height: 12),
+                  Text('Chưa có tin tuyển dụng nào',
+                      style: TextStyle(color: Colors.grey.shade500)),
+                  const SizedBox(height: 8),
+                  Text('Nhấn nút + bên dưới để đăng tin',
+                      style: TextStyle(
+                          color: Colors.grey.shade400, fontSize: 13)),
+                ],
+              ),
+            );
           }
           return ListView.builder(
             padding: const EdgeInsets.all(12),
             itemCount: jobs.length,
             itemBuilder: (_, i) => Card(
+              margin: const EdgeInsets.only(bottom: 10),
+              elevation: 2,
               child: ListTile(
                 contentPadding: const EdgeInsets.all(12),
-                title: Text(jobs[i].title, style: const TextStyle(fontWeight: FontWeight.bold)),
-                subtitle: Text('${jobs[i].location} • ${jobs[i].salary}'),
-                trailing: Chip(label: Text(jobs[i].category)),
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => ApplicantsScreen(
-                      jobId: jobs[i].id,
-                      jobTitle: jobs[i].title,
-                    ),
+                leading: CircleAvatar(
+                  backgroundColor: Colors.green,
+                  child: Text(
+                    jobs[i].company.isNotEmpty
+                        ? jobs[i].company[0].toUpperCase()
+                        : 'C',
+                    style: const TextStyle(color: Colors.white),
                   ),
+                ),
+                title: Text(jobs[i].title,
+                    style: const TextStyle(fontWeight: FontWeight.bold)),
+                subtitle: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('${jobs[i].location} • ${jobs[i].salary}'),
+                    Text(jobs[i].category,
+                        style: const TextStyle(
+                            fontSize: 12, color: Colors.grey)),
+                  ],
+                ),
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.delete_outline,
+                          color: Colors.red),
+                      onPressed: () async {
+                        final confirm = await showDialog<bool>(
+                          context: context,
+                          builder: (_) => AlertDialog(
+                            title: const Text('Xác nhận xóa'),
+                            content: Text(
+                                'Bạn có chắc muốn xóa tin "${jobs[i].title}"?'),
+                            actions: [
+                              TextButton(
+                                onPressed: () =>
+                                    Navigator.pop(context, false),
+                                child: const Text('Hủy'),
+                              ),
+                              TextButton(
+                                onPressed: () =>
+                                    Navigator.pop(context, true),
+                                child: const Text('Xóa',
+                                    style: TextStyle(color: Colors.red)),
+                              ),
+                            ],
+                          ),
+                        );
+                        if (confirm == true) {
+                          await jobVM.deleteJob(jobs[i].id);
+                        }
+                      },
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.people_outline,
+                          color: Color(0xFF1E88E5)),
+                      onPressed: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => ApplicantsScreen(
+                            jobId: jobs[i].id,
+                            jobTitle: jobs[i].title,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -71,6 +152,9 @@ class EmployerHomeScreen extends StatelessWidget {
         onPressed: () => showModalBottomSheet(
           context: context,
           isScrollControlled: true,
+          shape: const RoundedRectangleBorder(
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
           builder: (_) => const _PostJobSheet(),
         ),
       ),
@@ -86,6 +170,7 @@ class _PostJobSheet extends StatefulWidget {
 }
 
 class _PostJobSheetState extends State<_PostJobSheet> {
+  final _formKey = GlobalKey<FormState>();
   final _titleCtrl = TextEditingController();
   final _companyCtrl = TextEditingController();
   final _locationCtrl = TextEditingController();
@@ -109,7 +194,7 @@ class _PostJobSheetState extends State<_PostJobSheet> {
   }
 
   Future<void> _submit() async {
-    if (_titleCtrl.text.isEmpty || _companyCtrl.text.isEmpty) return;
+    if (!_formKey.currentState!.validate()) return;
     setState(() => _loading = true);
     final auth = context.read<AuthViewModel>();
     final jobVM = context.read<JobViewModel>();
@@ -135,55 +220,81 @@ class _PostJobSheetState extends State<_PostJobSheet> {
         bottom: MediaQuery.of(context).viewInsets.bottom + 20,
       ),
       child: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text('Đăng tin tuyển dụng',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _titleCtrl,
-              decoration: const InputDecoration(labelText: 'Tên vị trí *'),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _companyCtrl,
-              decoration: const InputDecoration(labelText: 'Tên công ty *'),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _locationCtrl,
-              decoration: const InputDecoration(labelText: 'Địa điểm'),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _salaryCtrl,
-              decoration: const InputDecoration(labelText: 'Mức lương'),
-            ),
-            const SizedBox(height: 12),
-            DropdownButtonFormField<String>(
-              value: _category,
-              decoration: const InputDecoration(labelText: 'Ngành nghề'),
-              items: _categories
-                  .map((c) => DropdownMenuItem(value: c, child: Text(c)))
-                  .toList(),
-              onChanged: (v) => setState(() => _category = v!),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _descCtrl,
-              decoration: const InputDecoration(labelText: 'Mô tả công việc'),
-              maxLines: 4,
-            ),
-            const SizedBox(height: 20),
-            _loading
-                ? const Center(child: CircularProgressIndicator())
-                : ElevatedButton(
-                    onPressed: _submit,
-                    child: const Text('Đăng tin'),
-                  ),
-          ],
+        child: Form(
+          key: _formKey,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('Đăng tin tuyển dụng',
+                  style: TextStyle(
+                      fontSize: 18, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _titleCtrl,
+                decoration:
+                    const InputDecoration(labelText: 'Tên vị trí *'),
+                validator: (v) => v == null || v.trim().isEmpty
+                    ? 'Vui lòng nhập tên vị trí'
+                    : null,
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _companyCtrl,
+                decoration:
+                    const InputDecoration(labelText: 'Tên công ty *'),
+                validator: (v) => v == null || v.trim().isEmpty
+                    ? 'Vui lòng nhập tên công ty'
+                    : null,
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _locationCtrl,
+                decoration:
+                    const InputDecoration(labelText: 'Địa điểm *'),
+                validator: (v) => v == null || v.trim().isEmpty
+                    ? 'Vui lòng nhập địa điểm'
+                    : null,
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _salaryCtrl,
+                decoration: const InputDecoration(
+                    labelText: 'Mức lương (VD: 10-15 triệu) *'),
+                validator: (v) => v == null || v.trim().isEmpty
+                    ? 'Vui lòng nhập mức lương'
+                    : null,
+              ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                value: _category,
+                decoration:
+                    const InputDecoration(labelText: 'Ngành nghề'),
+                items: _categories
+                    .map((c) =>
+                        DropdownMenuItem(value: c, child: Text(c)))
+                    .toList(),
+                onChanged: (v) => setState(() => _category = v!),
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _descCtrl,
+                decoration: const InputDecoration(
+                    labelText: 'Mô tả công việc *'),
+                maxLines: 4,
+                validator: (v) => v == null || v.trim().isEmpty
+                    ? 'Vui lòng nhập mô tả công việc'
+                    : null,
+              ),
+              const SizedBox(height: 20),
+              _loading
+                  ? const Center(child: CircularProgressIndicator())
+                  : ElevatedButton(
+                      onPressed: _submit,
+                      child: const Text('Đăng tin'),
+                    ),
+            ],
+          ),
         ),
       ),
     );

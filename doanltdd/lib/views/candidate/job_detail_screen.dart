@@ -21,32 +21,87 @@ class JobDetailScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(job.title, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 8),
-            Text(job.company, style: const TextStyle(fontSize: 16, color: Colors.grey)),
-            const Divider(height: 24),
-            _infoRow(Icons.location_on, job.location),
-            _infoRow(Icons.attach_money, job.salary),
-            _infoRow(Icons.category, job.category),
+            // Header card
+            Card(
+              color: const Color(0xFF1E88E5).withOpacity(0.05),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 32,
+                      backgroundColor: const Color(0xFF1E88E5),
+                      child: Text(
+                        job.company.isNotEmpty
+                            ? job.company[0].toUpperCase()
+                            : 'C',
+                        style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(job.title,
+                              style: const TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold)),
+                          Text(job.company,
+                              style: const TextStyle(
+                                  fontSize: 15, color: Colors.grey)),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
             const SizedBox(height: 16),
-            const Text('Mô tả công việc', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            _infoCard([
+              _infoRow(Icons.location_on, 'Địa điểm', job.location, Colors.red),
+              _infoRow(Icons.attach_money, 'Mức lương', job.salary, Colors.green),
+              _infoRow(Icons.category, 'Ngành nghề', job.category, Colors.blue),
+            ]),
+            const SizedBox(height: 16),
+            const Text('Mô tả công việc',
+                style:
+                    TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
-            Text(job.description),
-            const SizedBox(height: 32),
+            Text(job.description,
+                style: const TextStyle(height: 1.6)),
+            const SizedBox(height: 28),
             ElevatedButton.icon(
               icon: const Icon(Icons.send),
               label: const Text('Ứng tuyển ngay'),
               onPressed: () async {
-                await jobVM.applyJob(
-                  job.id,
-                  auth.userModel!.uid,
-                  auth.userModel!.fullName,
-                );
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Ứng tuyển thành công!')),
+                try {
+                  await jobVM.applyJob(
+                    job.id,
+                    auth.userModel!.uid,
+                    auth.userModel!.fullName,
                   );
-                  Navigator.pop(context);
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Ứng tuyển thành công!'),
+                        backgroundColor: Colors.green,
+                      ),
+                    );
+                    Navigator.pop(context);
+                  }
+                } catch (e) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(e.toString().replaceAll('Exception: ', '')),
+                        backgroundColor: Colors.orange,
+                      ),
+                    );
+                  }
                 }
               },
             ),
@@ -71,14 +126,25 @@ class JobDetailScreen extends StatelessWidget {
     );
   }
 
-  Widget _infoRow(IconData icon, String text) {
+  Widget _infoCard(List<Widget> children) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(children: children),
+      ),
+    );
+  }
+
+  Widget _infoRow(IconData icon, String label, String value, Color color) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
+      padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
         children: [
-          Icon(icon, size: 18, color: Colors.blue),
+          Icon(icon, size: 20, color: color),
           const SizedBox(width: 8),
-          Text(text),
+          Text('$label: ',
+              style: const TextStyle(fontWeight: FontWeight.w500)),
+          Expanded(child: Text(value)),
         ],
       ),
     );

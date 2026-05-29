@@ -11,6 +11,7 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
+  final _formKey = GlobalKey<FormState>();
   final _emailCtrl = TextEditingController();
   final _passCtrl = TextEditingController();
   bool _obscure = true;
@@ -23,6 +24,7 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _login() async {
+    if (!_formKey.currentState!.validate()) return;
     final auth = context.read<AuthViewModel>();
     final ok = await auth.login(_emailCtrl.text.trim(), _passCtrl.text);
     if (!ok && mounted) {
@@ -37,45 +39,65 @@ class _LoginScreenState extends State<LoginScreen> {
     final auth = context.watch<AuthViewModel>();
     return Scaffold(
       body: SafeArea(
-        child: Padding(
+        child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.work_rounded, size: 72, color: Color(0xFF1E88E5)),
-              const SizedBox(height: 8),
-              const Text('Tìm Việc Làm', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 32),
-              TextField(
-                controller: _emailCtrl,
-                decoration: const InputDecoration(labelText: 'Email', prefixIcon: Icon(Icons.email)),
-                keyboardType: TextInputType.emailAddress,
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: _passCtrl,
-                obscureText: _obscure,
-                decoration: InputDecoration(
-                  labelText: 'Mật khẩu',
-                  prefixIcon: const Icon(Icons.lock),
-                  suffixIcon: IconButton(
-                    icon: Icon(_obscure ? Icons.visibility : Icons.visibility_off),
-                    onPressed: () => setState(() => _obscure = !_obscure),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const SizedBox(height: 60),
+                const Icon(Icons.work_rounded, size: 72, color: Color(0xFF1E88E5)),
+                const SizedBox(height: 8),
+                const Text('Tìm Việc Làm',
+                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 8),
+                Text('Kết nối ứng viên và nhà tuyển dụng',
+                    style: TextStyle(color: Colors.grey.shade600)),
+                const SizedBox(height: 40),
+                TextFormField(
+                  controller: _emailCtrl,
+                  decoration: const InputDecoration(
+                      labelText: 'Email', prefixIcon: Icon(Icons.email)),
+                  keyboardType: TextInputType.emailAddress,
+                  validator: (v) {
+                    if (v == null || v.trim().isEmpty) return 'Vui lòng nhập email';
+                    final emailRegex = RegExp(r'^[^@]+@[^@]+\.[^@]+');
+                    if (!emailRegex.hasMatch(v.trim())) return 'Email không hợp lệ';
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _passCtrl,
+                  obscureText: _obscure,
+                  decoration: InputDecoration(
+                    labelText: 'Mật khẩu',
+                    prefixIcon: const Icon(Icons.lock),
+                    suffixIcon: IconButton(
+                      icon: Icon(_obscure ? Icons.visibility : Icons.visibility_off),
+                      onPressed: () => setState(() => _obscure = !_obscure),
+                    ),
                   ),
+                  validator: (v) {
+                    if (v == null || v.isEmpty) return 'Vui lòng nhập mật khẩu';
+                    if (v.length < 6) return 'Mật khẩu tối thiểu 6 ký tự';
+                    return null;
+                  },
                 ),
-              ),
-              const SizedBox(height: 24),
-              auth.isLoading
-                  ? const CircularProgressIndicator()
-                  : ElevatedButton(onPressed: _login, child: const Text('Đăng nhập')),
-              const SizedBox(height: 12),
-              TextButton(
-                onPressed: () => Navigator.push(
-                  context, MaterialPageRoute(builder: (_) => const RegisterScreen()),
+                const SizedBox(height: 24),
+                auth.isLoading
+                    ? const CircularProgressIndicator()
+                    : ElevatedButton(
+                        onPressed: _login, child: const Text('Đăng nhập')),
+                const SizedBox(height: 12),
+                TextButton(
+                  onPressed: () => Navigator.push(context,
+                      MaterialPageRoute(builder: (_) => const RegisterScreen())),
+                  child: const Text('Chưa có tài khoản? Đăng ký ngay'),
                 ),
-                child: const Text('Chưa có tài khoản? Đăng ký'),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
