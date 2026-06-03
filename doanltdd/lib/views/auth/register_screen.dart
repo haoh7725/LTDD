@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../viewmodels/auth_viewmodel.dart';
+import '../candidate/candidate_home_screen.dart';
+import '../employer/employer_home_screen.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -29,18 +31,27 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   Future<void> _register() async {
-    if (!_formKey.currentState!.validate()) return;
-    final auth = context.read<AuthViewModel>();
-    final ok = await auth.register(
-      _emailCtrl.text.trim(), _passCtrl.text,
-      _nameCtrl.text.trim(), _role,
+  if (!_formKey.currentState!.validate()) return;
+  final auth = context.read<AuthViewModel>();
+  final ok = await auth.register(
+    _emailCtrl.text.trim(), _passCtrl.text,
+    _nameCtrl.text.trim(), _role,
+  );
+  if (!mounted) return;
+  if (ok) {
+    final Widget next = auth.role == 'employer'
+        ? const EmployerHomeScreen()
+        : const CandidateHomeScreen();
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => next),
+      (route) => false,
     );
-    if (!ok && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(auth.errorMessage ?? 'Lỗi đăng ký')),
-      );
-    }
+  } else {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(auth.errorMessage ?? 'Lỗi đăng ký')),
+    );
   }
+}
 
   @override
   Widget build(BuildContext context) {

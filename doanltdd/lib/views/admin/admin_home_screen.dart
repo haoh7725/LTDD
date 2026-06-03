@@ -16,7 +16,29 @@ class AdminHomeScreen extends StatelessWidget {
           actions: [
             IconButton(
               icon: const Icon(Icons.logout),
-              onPressed: () => context.read<AuthViewModel>().logout(),
+              onPressed: () async {
+                final confirm = await showDialog<bool>(
+                  context: context,
+                  builder: (_) => AlertDialog(
+                    title: const Text('Đăng xuất'),
+                    content: const Text('Bạn có chắc muốn đăng xuất?'),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context, false),
+                        child: const Text('Hủy'),
+                      ),
+                      TextButton(
+                        onPressed: () => Navigator.pop(context, true),
+                        child: const Text('Đăng xuất',
+                            style: TextStyle(color: Colors.red)),
+                      ),
+                    ],
+                  ),
+                );
+                if (confirm == true && context.mounted) {
+                  context.read<AuthViewModel>().logout();
+                }
+              },
             ),
           ],
           bottom: const TabBar(
@@ -45,7 +67,8 @@ class _UsersTab extends StatelessWidget {
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance.collection('users').snapshots(),
       builder: (context, snap) {
-        if (!snap.hasData) return const Center(child: CircularProgressIndicator());
+        if (!snap.hasData)
+          return const Center(child: CircularProgressIndicator());
         final docs = snap.data!.docs;
         return ListView.builder(
           padding: const EdgeInsets.all(12),
@@ -75,7 +98,11 @@ class _UsersTab extends StatelessWidget {
                   children: [
                     Chip(
                       label: Text(
-                        role == 'employer' ? 'NTD' : role == 'admin' ? 'Admin' : 'UV',
+                        role == 'employer'
+                            ? 'NTD'
+                            : role == 'admin'
+                                ? 'Admin'
+                                : 'UV',
                       ),
                       backgroundColor: role == 'employer'
                           ? Colors.green.shade100
@@ -92,15 +119,14 @@ class _UsersTab extends StatelessWidget {
                       tooltip: isBlocked ? 'Mở khóa' : 'Khóa tài khoản',
                       onPressed: () async {
                         final authVM = context.read<AuthViewModel>();
-                        
-                        // Không cho khóa chính mình
                         if (uid == authVM.userModel?.uid) {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Không thể khóa tài khoản của chính mình')),
+                            const SnackBar(
+                                content: Text(
+                                    'Không thể khóa tài khoản của chính mình')),
                           );
                           return;
                         }
-
                         await FirebaseFirestore.instance
                             .collection('users')
                             .doc(uid)
@@ -108,7 +134,9 @@ class _UsersTab extends StatelessWidget {
                         if (context.mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
-                              content: Text(isBlocked ? 'Đã mở khóa tài khoản' : 'Đã khóa tài khoản'),
+                              content: Text(isBlocked
+                                  ? 'Đã mở khóa tài khoản'
+                                  : 'Đã khóa tài khoản'),
                             ),
                           );
                         }
@@ -133,7 +161,8 @@ class _JobsTab extends StatelessWidget {
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance.collection('jobs').snapshots(),
       builder: (context, snap) {
-        if (!snap.hasData) return const Center(child: CircularProgressIndicator());
+        if (!snap.hasData)
+          return const Center(child: CircularProgressIndicator());
         final docs = snap.data!.docs;
         return ListView.builder(
           padding: const EdgeInsets.all(12),
@@ -148,14 +177,36 @@ class _JobsTab extends StatelessWidget {
                 trailing: IconButton(
                   icon: const Icon(Icons.delete, color: Colors.red),
                   onPressed: () async {
-                    await FirebaseFirestore.instance
-                        .collection('jobs')
-                        .doc(jobId)
-                        .delete();
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Đã xóa tin tuyển dụng')),
-                      );
+                    final confirm = await showDialog<bool>(
+                      context: context,
+                      builder: (_) => AlertDialog(
+                        title: const Text('Xác nhận xóa'),
+                        content: Text(
+                            'Bạn có chắc muốn xóa tin "${data['title']}"?'),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(context, false),
+                            child: const Text('Hủy'),
+                          ),
+                          TextButton(
+                            onPressed: () => Navigator.pop(context, true),
+                            child: const Text('Xóa',
+                                style: TextStyle(color: Colors.red)),
+                          ),
+                        ],
+                      ),
+                    );
+                    if (confirm == true) {
+                      await FirebaseFirestore.instance
+                          .collection('jobs')
+                          .doc(jobId)
+                          .delete();
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                              content: Text('Đã xóa tin tuyển dụng')),
+                        );
+                      }
                     }
                   },
                 ),

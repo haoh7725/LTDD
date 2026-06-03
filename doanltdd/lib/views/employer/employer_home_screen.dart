@@ -21,7 +21,7 @@ class EmployerHomeScreen extends StatelessWidget {
           children: [
             const Text('Nhà tuyển dụng',
                 style: TextStyle(fontWeight: FontWeight.bold)),
-            Text(auth.userModel?.fullName ?? '',  // fixed: removed unnecessary string interpolation
+            Text(auth.userModel?.fullName ?? '',
                 style: const TextStyle(
                     fontSize: 12, fontWeight: FontWeight.normal)),
           ],
@@ -35,7 +35,29 @@ class EmployerHomeScreen extends StatelessWidget {
           ),
           IconButton(
             icon: const Icon(Icons.logout),
-            onPressed: () => auth.logout(),
+            onPressed: () async {
+              final confirm = await showDialog<bool>(
+                context: context,
+                builder: (_) => AlertDialog(
+                  title: const Text('Đăng xuất'),
+                  content: const Text('Bạn có chắc muốn đăng xuất?'),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context, false),
+                      child: const Text('Hủy'),
+                    ),
+                    TextButton(
+                      onPressed: () => Navigator.pop(context, true),
+                      child: const Text('Đăng xuất',
+                          style: TextStyle(color: Colors.red)),
+                    ),
+                  ],
+                ),
+              );
+              if (confirm == true && context.mounted) {
+                auth.logout();
+              }
+            },
           ),
         ],
       ),
@@ -226,34 +248,27 @@ class _PostJobSheetState extends State<_PostJobSheet> {
             mainAxisSize: MainAxisSize.min,
             children: [
               const Text('Đăng tin tuyển dụng',
-                  style: TextStyle(
-                      fontSize: 18, fontWeight: FontWeight.bold)),
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
               const SizedBox(height: 16),
               TextFormField(
                 controller: _titleCtrl,
-                decoration:
-                    const InputDecoration(labelText: 'Tên vị trí *'),
+                decoration: const InputDecoration(labelText: 'Tên vị trí *'),
                 validator: (v) => v == null || v.trim().isEmpty
-                    ? 'Vui lòng nhập tên vị trí'
-                    : null,
+                    ? 'Vui lòng nhập tên vị trí' : null,
               ),
               const SizedBox(height: 12),
               TextFormField(
                 controller: _companyCtrl,
-                decoration:
-                    const InputDecoration(labelText: 'Tên công ty *'),
+                decoration: const InputDecoration(labelText: 'Tên công ty *'),
                 validator: (v) => v == null || v.trim().isEmpty
-                    ? 'Vui lòng nhập tên công ty'
-                    : null,
+                    ? 'Vui lòng nhập tên công ty' : null,
               ),
               const SizedBox(height: 12),
               TextFormField(
                 controller: _locationCtrl,
-                decoration:
-                    const InputDecoration(labelText: 'Địa điểm *'),
+                decoration: const InputDecoration(labelText: 'Địa điểm *'),
                 validator: (v) => v == null || v.trim().isEmpty
-                    ? 'Vui lòng nhập địa điểm'
-                    : null,
+                    ? 'Vui lòng nhập địa điểm' : null,
               ),
               const SizedBox(height: 12),
               TextFormField(
@@ -261,29 +276,25 @@ class _PostJobSheetState extends State<_PostJobSheet> {
                 decoration: const InputDecoration(
                     labelText: 'Mức lương (VD: 10-15 triệu) *'),
                 validator: (v) => v == null || v.trim().isEmpty
-                    ? 'Vui lòng nhập mức lương'
-                    : null,
+                    ? 'Vui lòng nhập mức lương' : null,
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
-                initialValue: _category, // fixed: was deprecated `value`
-                decoration:
-                    const InputDecoration(labelText: 'Ngành nghề'),
+                value: _category,
+                decoration: const InputDecoration(labelText: 'Ngành nghề'),
                 items: _categories
-                    .map((c) =>
-                        DropdownMenuItem(value: c, child: Text(c)))
+                    .map((c) => DropdownMenuItem(value: c, child: Text(c)))
                     .toList(),
                 onChanged: (v) => setState(() => _category = v!),
               ),
               const SizedBox(height: 12),
               TextFormField(
                 controller: _descCtrl,
-                decoration: const InputDecoration(
-                    labelText: 'Mô tả công việc *'),
+                decoration:
+                    const InputDecoration(labelText: 'Mô tả công việc *'),
                 maxLines: 4,
                 validator: (v) => v == null || v.trim().isEmpty
-                    ? 'Vui lòng nhập mô tả công việc'
-                    : null,
+                    ? 'Vui lòng nhập mô tả công việc' : null,
               ),
               const SizedBox(height: 20),
               _loading

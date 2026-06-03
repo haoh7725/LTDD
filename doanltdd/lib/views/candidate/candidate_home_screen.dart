@@ -19,6 +19,7 @@ class CandidateHomeScreen extends StatefulWidget {
 
 class _CandidateHomeScreenState extends State<CandidateHomeScreen> {
   final _searchCtrl = TextEditingController();
+  final _notifService = NotificationService(); // ✅ fix 2
   String _keyword = '';
   String _locationFilter = '';
   int _currentIndex = 0;
@@ -33,11 +34,10 @@ class _CandidateHomeScreenState extends State<CandidateHomeScreen> {
   Widget build(BuildContext context) {
     final auth = context.watch<AuthViewModel>();
     final jobVM = context.watch<JobViewModel>();
-    final notifService = NotificationService();
     final uid = auth.userModel?.uid ?? '';
 
     final pages = [
-      _buildJobList(auth, jobVM, notifService, uid),
+      _buildJobList(auth, jobVM, uid),
       const MyApplicationsScreen(),
       const ChatListScreen(),
       const ProfileScreen(),
@@ -48,22 +48,17 @@ class _CandidateHomeScreenState extends State<CandidateHomeScreen> {
       bottomNavigationBar: NavigationBar(
         selectedIndex: _currentIndex,
         onDestinationSelected: (i) => setState(() => _currentIndex = i),
-        destinations: [
-          const NavigationDestination(
-              icon: Icon(Icons.search), label: 'Tìm việc'),
-          const NavigationDestination(
-              icon: Icon(Icons.assignment), label: 'Đơn ứng tuyển'),
-          const NavigationDestination(
-              icon: Icon(Icons.chat), label: 'Tin nhắn'),
-          const NavigationDestination(
-              icon: Icon(Icons.person), label: 'Hồ sơ'),
+        destinations: const [
+          NavigationDestination(icon: Icon(Icons.search), label: 'Tìm việc'),
+          NavigationDestination(icon: Icon(Icons.assignment), label: 'Đơn ứng tuyển'),
+          NavigationDestination(icon: Icon(Icons.chat), label: 'Tin nhắn'),
+          NavigationDestination(icon: Icon(Icons.person), label: 'Hồ sơ'),
         ],
       ),
     );
   }
 
-  Widget _buildJobList(AuthViewModel auth, JobViewModel jobVM,
-      NotificationService notifService, String uid) {
+  Widget _buildJobList(AuthViewModel auth, JobViewModel jobVM, String uid) {
     return Scaffold(
       appBar: AppBar(
         title: Column(
@@ -77,9 +72,8 @@ class _CandidateHomeScreenState extends State<CandidateHomeScreen> {
           ],
         ),
         actions: [
-          // Icon thông báo có badge
           StreamBuilder<int>(
-            stream: notifService.getUnreadCount(uid),
+            stream: _notifService.getUnreadCount(uid), // ✅ fix 2
             builder: (context, snap) {
               final count = snap.data ?? 0;
               return Stack(
@@ -118,9 +112,32 @@ class _CandidateHomeScreenState extends State<CandidateHomeScreen> {
               );
             },
           ),
+          // ✅ fix 3 — logout có confirm
           IconButton(
             icon: const Icon(Icons.logout),
-            onPressed: () => auth.logout(),
+            onPressed: () async {
+              final confirm = await showDialog<bool>(
+                context: context,
+                builder: (_) => AlertDialog(
+                  title: const Text('Đăng xuất'),
+                  content: const Text('Bạn có chắc muốn đăng xuất?'),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context, false),
+                      child: const Text('Hủy'),
+                    ),
+                    TextButton(
+                      onPressed: () => Navigator.pop(context, true),
+                      child: const Text('Đăng xuất',
+                          style: TextStyle(color: Colors.red)),
+                    ),
+                  ],
+                ),
+              );
+              if (confirm == true && context.mounted) {
+                auth.logout();
+              }
+            },
           ),
         ],
       ),
@@ -182,8 +199,8 @@ class _CandidateHomeScreenState extends State<CandidateHomeScreen> {
                   child: ChoiceChip(
                     label: Text(cat),
                     selected: selected,
-                    onSelected: (_) => jobVM
-                        .setCategory(cat == 'Tất cả' ? '' : cat),
+                    onSelected: (_) =>
+                        jobVM.setCategory(cat == 'Tất cả' ? '' : cat),
                   ),
                 );
               },
@@ -285,17 +302,14 @@ class _JobCard extends StatelessWidget {
                             fontWeight: FontWeight.bold, fontSize: 15)),
                     const SizedBox(height: 2),
                     Text(job.company,
-                        style:
-                            TextStyle(color: Colors.grey.shade700)),
+                        style: TextStyle(color: Colors.grey.shade700)),
                     const SizedBox(height: 6),
                     Wrap(
                       spacing: 8,
                       runSpacing: 4,
                       children: [
-                        _tag(Icons.location_on, job.location,
-                            Colors.red),
-                        _tag(Icons.attach_money, job.salary,
-                            Colors.green),
+                        _tag(Icons.location_on, job.location, Colors.red),
+                        _tag(Icons.attach_money, job.salary, Colors.green),
                       ],
                     ),
                   ],
@@ -321,8 +335,7 @@ class _JobCard extends StatelessWidget {
         Icon(icon, size: 13, color: color),
         const SizedBox(width: 2),
         Text(text,
-            style: TextStyle(
-                fontSize: 12, color: Colors.grey.shade700)),
+            style: TextStyle(fontSize: 12, color: Colors.grey.shade700)),
       ],
     );
   }

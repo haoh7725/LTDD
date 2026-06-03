@@ -51,7 +51,7 @@ class JobService {
       'candidateId': candidateId,
       'candidateName': candidateName,
       'status': 'pending',
-      'appliedAt': DateTime.now(),
+      'appliedAt': FieldValue.serverTimestamp(),
     });
   }
 

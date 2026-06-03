@@ -67,6 +67,15 @@ class _ChatScreenState extends State<ChatScreen> {
               builder: (context, snap) {
                 if (!snap.hasData) return const Center(child: CircularProgressIndicator());
                 final messages = snap.data!;
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (_scrollCtrl.hasClients) {
+                    _scrollCtrl.animateTo(
+                      _scrollCtrl.position.maxScrollExtent,
+                      duration: const Duration(milliseconds: 200),
+                      curve: Curves.easeOut,
+                    );
+                  }
+                });
                 return ListView.builder(
                   controller: _scrollCtrl,
                   padding: const EdgeInsets.all(12),

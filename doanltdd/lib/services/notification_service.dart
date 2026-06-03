@@ -16,7 +16,7 @@ class NotificationService {
       'body': body,
       'type': type,
       'isRead': false,
-      'createdAt': DateTime.now(),
+      'createdAt': FieldValue.serverTimestamp(),
     });
   }
 

@@ -5,7 +5,7 @@ import '../../viewmodels/job_viewmodel.dart';
 import '../../services/notification_service.dart';
 import '../chat/chat_screen.dart';
 
-class ApplicantsScreen extends StatelessWidget {
+class ApplicantsScreen extends StatefulWidget {
   final String jobId;
   final String jobTitle;
 
@@ -15,25 +15,36 @@ class ApplicantsScreen extends StatelessWidget {
     required this.jobTitle,
   });
 
+  @override
+  State<ApplicantsScreen> createState() => _ApplicantsScreenState();
+}
+
+class _ApplicantsScreenState extends State<ApplicantsScreen> {
+  final Map<String, Map<String, dynamic>?> _userCache = {};
+
+  Future<Map<String, dynamic>?> _getUserInfo(String uid) async {
+    if (_userCache.containsKey(uid)) return _userCache[uid];
+    final doc = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(uid)
+        .get();
+    _userCache[uid] = doc.data();
+    return _userCache[uid];
+  }
+
   Color _statusColor(String status) {
     switch (status) {
-      case 'accepted':
-        return Colors.green;
-      case 'rejected':
-        return Colors.red;
-      default:
-        return Colors.orange;
+      case 'accepted': return Colors.green;
+      case 'rejected': return Colors.red;
+      default: return Colors.orange;
     }
   }
 
   String _statusLabel(String status) {
     switch (status) {
-      case 'accepted':
-        return 'Đã duyệt';
-      case 'rejected':
-        return 'Từ chối';
-      default:
-        return 'Chờ duyệt';
+      case 'accepted': return 'Đã duyệt';
+      case 'rejected': return 'Từ chối';
+      default: return 'Chờ duyệt';
     }
   }
 
@@ -49,10 +60,12 @@ class ApplicantsScreen extends StatelessWidget {
 
     await jobVM.updateApplicationStatus(applicationId, newStatus);
 
-    final title = newStatus == 'accepted' ? 'Đơn ứng tuyển được duyệt' : 'Đơn ứng tuyển bị từ chối';
+    final title = newStatus == 'accepted'
+        ? 'Đơn ứng tuyển được duyệt'
+        : 'Đơn ứng tuyển bị từ chối';
     final body = newStatus == 'accepted'
-        ? 'Chúc mừng! Đơn ứng tuyển của bạn cho vị trí "$jobTitle" đã được chấp nhận.'
-        : 'Rất tiếc, đơn ứng tuyển của bạn cho vị trí "$jobTitle" đã bị từ chối.';
+        ? 'Chúc mừng! Đơn ứng tuyển của bạn cho vị trí "${widget.jobTitle}" đã được chấp nhận.'
+        : 'Rất tiếc, đơn ứng tuyển của bạn cho vị trí "${widget.jobTitle}" đã bị từ chối.';
 
     await notifService.sendNotification(
       toUserId: candidateId,
@@ -71,14 +84,16 @@ class ApplicantsScreen extends StatelessWidget {
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Ứng viên', style: TextStyle(fontWeight: FontWeight.bold)),
-            Text(jobTitle,
-                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.normal)),
+            const Text('Ứng viên',
+                style: TextStyle(fontWeight: FontWeight.bold)),
+            Text(widget.jobTitle,
+                style: const TextStyle(
+                    fontSize: 12, fontWeight: FontWeight.normal)),
           ],
         ),
       ),
       body: StreamBuilder<List<Map<String, dynamic>>>(
-        stream: jobVM.getApplicationsByJob(jobId),
+        stream: jobVM.getApplicationsByJob(widget.jobId),
         builder: (context, snap) {
           if (snap.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
@@ -89,7 +104,8 @@ class ApplicantsScreen extends StatelessWidget {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.people_outline, size: 64, color: Colors.grey.shade400),
+                  Icon(Icons.people_outline,
+                      size: 64, color: Colors.grey.shade400),
                   const SizedBox(height: 12),
                   Text('Chưa có ứng viên nào',
                       style: TextStyle(color: Colors.grey.shade500)),
@@ -111,14 +127,10 @@ class ApplicantsScreen extends StatelessWidget {
                       .substring(0, 10) ??
                   '';
 
-              return FutureBuilder<DocumentSnapshot>(
-                future: FirebaseFirestore.instance
-                    .collection('users')
-                    .doc(candidateId)
-                    .get(),
+              return FutureBuilder<Map<String, dynamic>?>(
+                future: _getUserInfo(candidateId),
                 builder: (context, userSnap) {
-                  final userData =
-                      userSnap.data?.data() as Map<String, dynamic>?;
+                  final userData = userSnap.data;
                   final phone = userData?['phone'] ?? '';
                   final skills = userData?['skills'] ?? '';
 
@@ -186,7 +198,8 @@ class ApplicantsScreen extends StatelessWidget {
                             const SizedBox(height: 8),
                             Text('Kỹ năng: $skills',
                                 style: TextStyle(
-                                    fontSize: 13, color: Colors.grey.shade700)),
+                                    fontSize: 13,
+                                    color: Colors.grey.shade700)),
                           ],
                           const SizedBox(height: 10),
                           Row(
@@ -197,12 +210,17 @@ class ApplicantsScreen extends StatelessWidget {
                                     icon: const Icon(Icons.check,
                                         color: Colors.green, size: 18),
                                     label: const Text('Duyệt',
-                                        style: TextStyle(color: Colors.green)),
+                                        style:
+                                            TextStyle(color: Colors.green)),
                                     style: OutlinedButton.styleFrom(
                                         side: const BorderSide(
                                             color: Colors.green)),
-                                    onPressed: () => _updateStatus(context,
-                                        app['id'], candidateId, 'accepted', candidateName),
+                                    onPressed: () => _updateStatus(
+                                        context,
+                                        app['id'],
+                                        candidateId,
+                                        'accepted',
+                                        candidateName),
                                   ),
                                 ),
                                 const SizedBox(width: 8),
@@ -215,15 +233,20 @@ class ApplicantsScreen extends StatelessWidget {
                                     style: OutlinedButton.styleFrom(
                                         side: const BorderSide(
                                             color: Colors.red)),
-                                    onPressed: () => _updateStatus(context,
-                                        app['id'], candidateId, 'rejected', candidateName),
+                                    onPressed: () => _updateStatus(
+                                        context,
+                                        app['id'],
+                                        candidateId,
+                                        'rejected',
+                                        candidateName),
                                   ),
                                 ),
                                 const SizedBox(width: 8),
                               ],
                               Expanded(
                                 child: OutlinedButton.icon(
-                                  icon: const Icon(Icons.chat_bubble_outline,
+                                  icon: const Icon(
+                                      Icons.chat_bubble_outline,
                                       size: 18),
                                   label: const Text('Nhắn tin'),
                                   onPressed: () => Navigator.push(

@@ -4,12 +4,24 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../viewmodels/auth_viewmodel.dart';
 import '../../viewmodels/job_viewmodel.dart';
 
-class MyApplicationsScreen extends StatelessWidget {
+class MyApplicationsScreen extends StatefulWidget {
   const MyApplicationsScreen({super.key});
 
+  @override
+  State<MyApplicationsScreen> createState() => _MyApplicationsScreenState();
+}
+
+class _MyApplicationsScreenState extends State<MyApplicationsScreen> {
+  final Map<String, Map<String, dynamic>?> _jobCache = {};
+
   Future<Map<String, dynamic>?> _getJobInfo(String jobId) async {
-    final doc = await FirebaseFirestore.instance.collection('jobs').doc(jobId).get();
-    return doc.exists ? doc.data() : null;
+    if (_jobCache.containsKey(jobId)) return _jobCache[jobId];
+    final doc = await FirebaseFirestore.instance
+        .collection('jobs')
+        .doc(jobId)
+        .get();
+    _jobCache[jobId] = doc.exists ? doc.data() : null;
+    return _jobCache[jobId];
   }
 
   Color _statusColor(String status) {
@@ -102,10 +114,10 @@ class MyApplicationsScreen extends StatelessWidget {
                         padding: const EdgeInsets.symmetric(
                             horizontal: 10, vertical: 4),
                         decoration: BoxDecoration(
-                          color: _statusColor(status).withValues(alpha: 0.15), // fixed
+                          color: _statusColor(status).withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(
-                              color: _statusColor(status).withValues(alpha: 0.5)), // fixed
+                              color: _statusColor(status).withValues(alpha: 0.5)),
                         ),
                         child: Text(
                           _statusLabel(status),
