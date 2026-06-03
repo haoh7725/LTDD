@@ -8,6 +8,9 @@ class JobModel {
   final String category;
   final String employerId;
   final DateTime createdAt;
+  // FIX #3: Thêm 2 field còn thiếu để filter nâng cao hoạt động
+  final String? experience;
+  final String? contractType;
 
   JobModel({
     required this.id,
@@ -19,6 +22,8 @@ class JobModel {
     required this.category,
     required this.employerId,
     required this.createdAt,
+    this.experience,
+    this.contractType,
   });
 
   factory JobModel.fromMap(Map<String, dynamic> map, String id) {
@@ -32,6 +37,8 @@ class JobModel {
       category: map['category'] ?? '',
       employerId: map['employerId'] ?? '',
       createdAt: (map['createdAt'] as dynamic)?.toDate() ?? DateTime.now(),
+      experience: map['experience'],
+      contractType: map['contractType'],
     );
   }
 
@@ -45,6 +52,8 @@ class JobModel {
       'category': category,
       'employerId': employerId,
       'createdAt': createdAt,
+      if (experience != null) 'experience': experience,
+      if (contractType != null) 'contractType': contractType,
     };
   }
 }

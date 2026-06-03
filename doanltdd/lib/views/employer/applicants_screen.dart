@@ -34,44 +34,67 @@ class _ApplicantsScreenState extends State<ApplicantsScreen> {
 
   Color _statusColor(String status) {
     switch (status) {
-      case 'accepted': return Colors.green;
-      case 'rejected': return Colors.red;
-      default: return Colors.orange;
+      case 'accepted':
+        return Colors.green;
+      case 'rejected':
+        return Colors.red;
+      default:
+        return Colors.orange;
     }
   }
 
   String _statusLabel(String status) {
     switch (status) {
-      case 'accepted': return 'Đã duyệt';
-      case 'rejected': return 'Từ chối';
-      default: return 'Chờ duyệt';
+      case 'accepted':
+        return 'Đã duyệt';
+      case 'rejected':
+        return 'Từ chối';
+      default:
+        return 'Chờ duyệt';
     }
   }
 
+  // FIX #7: Không truyền BuildContext qua async gap
+  // Lấy service và jobVM trước khi await, kiểm tra mounted sau
   Future<void> _updateStatus(
-    BuildContext context,
     String applicationId,
     String candidateId,
     String newStatus,
     String candidateName,
   ) async {
+    // Lấy references trước khi bước vào async gap
     final jobVM = context.read<JobViewModel>();
     final notifService = NotificationService();
+    final jobTitle = widget.jobTitle;
 
     await jobVM.updateApplicationStatus(applicationId, newStatus);
+
+    // Kiểm tra mounted trước khi dùng context
+    if (!mounted) return;
 
     final title = newStatus == 'accepted'
         ? 'Đơn ứng tuyển được duyệt'
         : 'Đơn ứng tuyển bị từ chối';
     final body = newStatus == 'accepted'
-        ? 'Chúc mừng! Đơn ứng tuyển của bạn cho vị trí "${widget.jobTitle}" đã được chấp nhận.'
-        : 'Rất tiếc, đơn ứng tuyển của bạn cho vị trí "${widget.jobTitle}" đã bị từ chối.';
+        ? 'Chúc mừng! Đơn ứng tuyển của bạn cho vị trí "$jobTitle" đã được chấp nhận.'
+        : 'Rất tiếc, đơn ứng tuyển của bạn cho vị trí "$jobTitle" đã bị từ chối.';
 
     await notifService.sendNotification(
       toUserId: candidateId,
       title: title,
       body: body,
       type: newStatus,
+    );
+
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(newStatus == 'accepted'
+            ? 'Đã duyệt đơn của $candidateName'
+            : 'Đã từ chối đơn của $candidateName'),
+        backgroundColor:
+            newStatus == 'accepted' ? Colors.green : Colors.red,
+      ),
     );
   }
 
@@ -149,13 +172,15 @@ class _ApplicantsScreenState extends State<ApplicantsScreen> {
                                   candidateName.isNotEmpty
                                       ? candidateName[0].toUpperCase()
                                       : 'U',
-                                  style: const TextStyle(color: Colors.white),
+                                  style: const TextStyle(
+                                      color: Colors.white),
                                 ),
                               ),
                               const SizedBox(width: 12),
                               Expanded(
                                 child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.start,
                                   children: [
                                     Text(candidateName,
                                         style: const TextStyle(
@@ -210,17 +235,17 @@ class _ApplicantsScreenState extends State<ApplicantsScreen> {
                                     icon: const Icon(Icons.check,
                                         color: Colors.green, size: 18),
                                     label: const Text('Duyệt',
-                                        style:
-                                            TextStyle(color: Colors.green)),
+                                        style: TextStyle(
+                                            color: Colors.green)),
                                     style: OutlinedButton.styleFrom(
                                         side: const BorderSide(
                                             color: Colors.green)),
                                     onPressed: () => _updateStatus(
-                                        context,
-                                        app['id'],
-                                        candidateId,
-                                        'accepted',
-                                        candidateName),
+                                      app['id'],
+                                      candidateId,
+                                      'accepted',
+                                      candidateName,
+                                    ),
                                   ),
                                 ),
                                 const SizedBox(width: 8),
@@ -229,16 +254,17 @@ class _ApplicantsScreenState extends State<ApplicantsScreen> {
                                     icon: const Icon(Icons.close,
                                         color: Colors.red, size: 18),
                                     label: const Text('Từ chối',
-                                        style: TextStyle(color: Colors.red)),
+                                        style:
+                                            TextStyle(color: Colors.red)),
                                     style: OutlinedButton.styleFrom(
                                         side: const BorderSide(
                                             color: Colors.red)),
                                     onPressed: () => _updateStatus(
-                                        context,
-                                        app['id'],
-                                        candidateId,
-                                        'rejected',
-                                        candidateName),
+                                      app['id'],
+                                      candidateId,
+                                      'rejected',
+                                      candidateName,
+                                    ),
                                   ),
                                 ),
                                 const SizedBox(width: 8),

@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:file_picker/file_picker.dart';
@@ -27,7 +28,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   bool _editing = false;
   bool _cvLoading = false;
 
-  // CV info
   String? _cvUrl;
   String? _cvName;
 
@@ -55,14 +55,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
       _cvUrl = data['cvUrl'];
       _cvName = data['cvName'];
     }
-    setState(() {});
+    if (mounted) setState(() {});
   }
 
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _loading = true);
-    final auth = context.read<AuthViewModel>();
-    final uid = auth.userModel?.uid;
+    // FIX: Lấy uid TRƯỚC await để không dùng context sau async gap
+    final uid = context.read<AuthViewModel>().userModel?.uid;
     await FirebaseFirestore.instance.collection('users').doc(uid).update({
       'fullName': _nameCtrl.text.trim(),
       'phone': _phoneCtrl.text.trim(),
@@ -70,59 +70,63 @@ class _ProfileScreenState extends State<ProfileScreen> {
       'skills': _skillsCtrl.text.trim(),
       'experience': _expCtrl.text.trim(),
     });
+    if (!mounted) return;
     setState(() {
       _loading = false;
       _editing = false;
     });
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Cập nhật hồ sơ thành công!')),
-      );
-    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Cập nhật hồ sơ thành công!')),
+    );
   }
 
   Future<void> _pickAndUploadCv() async {
     final result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
       allowedExtensions: ['pdf', 'doc', 'docx'],
+      // Trên Web cần withData: true để lấy bytes
+      withData: kIsWeb,
     );
     if (result == null || result.files.isEmpty) return;
 
-    final filePath = result.files.single.path;
-    if (filePath == null) return;
-
-    final file = File(filePath);
     final fileName = result.files.single.name;
+    // FIX: Lấy uid TRƯỚC await để không dùng context sau async gap
+    final uid = context.read<AuthViewModel>().userModel!.uid;
 
     setState(() => _cvLoading = true);
 
     try {
-      final auth = context.read<AuthViewModel>();
-      final uid = auth.userModel!.uid;
-      final url = await _cvService.uploadCv(uid, file, fileName);
+      String? url;
+      if (kIsWeb) {
+        // Web: dùng bytes
+        final bytes = result.files.single.bytes!;
+        url = await _cvService.uploadCvBytes(uid, bytes, fileName);
+      } else {
+        // Mobile/Desktop: dùng File
+        final filePath = result.files.single.path!;
+        url = await _cvService.uploadCv(uid, File(filePath), fileName);
+      }
+      if (!mounted) return;
       setState(() {
         _cvUrl = url;
         _cvName = fileName;
         _cvLoading = false;
       });
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Upload CV thành công!'),
-            backgroundColor: Colors.green,
-          ),
-        );
-      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Upload CV thành công!'),
+          backgroundColor: Colors.green,
+        ),
+      );
     } catch (e) {
+      if (!mounted) return;
       setState(() => _cvLoading = false);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Lỗi upload: ${e.toString()}'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Lỗi upload: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 
@@ -140,27 +144,29 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child:
-                const Text('Xóa', style: TextStyle(color: Colors.red)),
+            child: const Text('Xóa', style: TextStyle(color: Colors.red)),
           ),
         ],
       ),
     );
     if (confirm != true) return;
 
+    // FIX: Lấy uid TRƯỚC await
+    final uid = context.read<AuthViewModel>().userModel!.uid;
+    final cvName = _cvName!;
     setState(() => _cvLoading = true);
-    final auth = context.read<AuthViewModel>();
-    await _cvService.deleteCv(auth.userModel!.uid, _cvName!);
+
+    await _cvService.deleteCv(uid, cvName);
+
+    if (!mounted) return;
     setState(() {
       _cvUrl = null;
       _cvName = null;
       _cvLoading = false;
     });
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Đã xóa CV')),
-      );
-    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Đã xóa CV')),
+    );
   }
 
   Future<void> _openCv() async {
@@ -210,7 +216,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Avatar header
               Center(
                 child: Column(
                   children: [
@@ -227,8 +232,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                     const SizedBox(height: 8),
                     Text(user?.email ?? '',
-                        style:
-                            TextStyle(color: Colors.grey.shade600)),
+                        style: TextStyle(color: Colors.grey.shade600)),
                     const SizedBox(height: 4),
                     Container(
                       padding: const EdgeInsets.symmetric(
@@ -246,8 +250,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
               ),
               const SizedBox(height: 28),
-
-              // ── Thông tin cá nhân ──────────────────────────────────────
               _sectionTitle('Thông tin cá nhân'),
               const SizedBox(height: 12),
               _buildField(
@@ -276,8 +278,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 maxLines: 3,
               ),
               const SizedBox(height: 20),
-
-              // ── Kỹ năng & Kinh nghiệm ─────────────────────────────────
               _sectionTitle('Kỹ năng & Kinh nghiệm'),
               const SizedBox(height: 12),
               _buildField(
@@ -296,14 +296,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 maxLines: 4,
               ),
               const SizedBox(height: 20),
-
-              // ── CV / Hồ sơ ────────────────────────────────────────────
               _sectionTitle('CV / Hồ sơ đính kèm'),
               const SizedBox(height: 12),
               _buildCvSection(),
               const SizedBox(height: 28),
-
-              // Nút lưu
               if (_editing)
                 _loading
                     ? const Center(child: CircularProgressIndicator())
@@ -323,9 +319,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (_cvLoading) {
       return const Center(child: CircularProgressIndicator());
     }
-
     if (_cvUrl != null && _cvName != null) {
-      // Đã có CV
       return Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
@@ -335,8 +329,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
         child: Row(
           children: [
-            const Icon(Icons.description, color: Colors.green,
-                size: 36),
+            const Icon(Icons.description, color: Colors.green, size: 36),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
@@ -350,19 +343,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     overflow: TextOverflow.ellipsis,
                   ),
                   const Text('Đã tải lên',
-                      style: TextStyle(
-                          color: Colors.green, fontSize: 12)),
+                      style:
+                          TextStyle(color: Colors.green, fontSize: 12)),
                 ],
               ),
             ),
-            // Nút xem
             IconButton(
               icon: const Icon(Icons.open_in_new,
                   color: Color(0xFF1E88E5)),
               tooltip: 'Xem CV',
               onPressed: _openCv,
             ),
-            // Nút xóa
             IconButton(
               icon: const Icon(Icons.delete_outline, color: Colors.red),
               tooltip: 'Xóa CV',
@@ -372,8 +363,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
       );
     }
-
-    // Chưa có CV
     return OutlinedButton.icon(
       icon: const Icon(Icons.upload_file),
       label: const Text('Tải lên CV (PDF / Word)'),

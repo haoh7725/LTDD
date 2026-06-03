@@ -32,7 +32,6 @@ class _CandidateHomeScreenState extends State<CandidateHomeScreen> {
   @override
   void initState() {
     super.initState();
-    // Init FCM sau khi widget build xong
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final uid = context.read<AuthViewModel>().userModel?.uid;
       if (uid != null) FcmService().init(uid);
@@ -85,10 +84,8 @@ class _CandidateHomeScreenState extends State<CandidateHomeScreen> {
               icon: Icon(Icons.assignment), label: 'Đơn của tôi'),
           NavigationDestination(
               icon: Icon(Icons.bookmark_border), label: 'Đã lưu'),
-          NavigationDestination(
-              icon: Icon(Icons.chat), label: 'Tin nhắn'),
-          NavigationDestination(
-              icon: Icon(Icons.person), label: 'Hồ sơ'),
+          NavigationDestination(icon: Icon(Icons.chat), label: 'Tin nhắn'),
+          NavigationDestination(icon: Icon(Icons.person), label: 'Hồ sơ'),
         ],
       ),
     );
@@ -111,7 +108,6 @@ class _CandidateHomeScreenState extends State<CandidateHomeScreen> {
           ],
         ),
         actions: [
-          // Nút filter với badge khi có filter đang active
           Stack(
             children: [
               IconButton(
@@ -136,7 +132,6 @@ class _CandidateHomeScreenState extends State<CandidateHomeScreen> {
                 ),
             ],
           ),
-          // Nút thông báo với badge
           StreamBuilder<int>(
             stream: _notifService.getUnreadCount(uid),
             builder: (context, snap) {
@@ -177,7 +172,6 @@ class _CandidateHomeScreenState extends State<CandidateHomeScreen> {
               );
             },
           ),
-          // Logout
           IconButton(
             icon: const Icon(Icons.logout),
             onPressed: () async {
@@ -200,7 +194,6 @@ class _CandidateHomeScreenState extends State<CandidateHomeScreen> {
                 ),
               );
               if (confirm == true && context.mounted) {
-                // Clear FCM token trước khi logout
                 final uid2 = auth.userModel?.uid;
                 if (uid2 != null) await FcmService().clearToken(uid2);
                 auth.logout();
@@ -211,7 +204,6 @@ class _CandidateHomeScreenState extends State<CandidateHomeScreen> {
       ),
       body: Column(
         children: [
-          // Thanh tìm kiếm
           Padding(
             padding: const EdgeInsets.fromLTRB(12, 12, 12, 4),
             child: TextField(
@@ -229,18 +221,15 @@ class _CandidateHomeScreenState extends State<CandidateHomeScreen> {
                       )
                     : null,
               ),
-              onChanged: (v) =>
-                  setState(() => _keyword = v.toLowerCase()),
+              onChanged: (v) => setState(() => _keyword = v.toLowerCase()),
             ),
           ),
-          // Lọc theo địa điểm
           Padding(
             padding: const EdgeInsets.fromLTRB(12, 4, 12, 0),
             child: TextField(
               decoration: InputDecoration(
                 hintText: 'Lọc theo địa điểm (VD: Hồ Chí Minh)',
-                prefixIcon:
-                    const Icon(Icons.location_on, size: 20),
+                prefixIcon: const Icon(Icons.location_on, size: 20),
                 suffixIcon: _locationFilter.isNotEmpty
                     ? IconButton(
                         icon: const Icon(Icons.clear),
@@ -255,7 +244,6 @@ class _CandidateHomeScreenState extends State<CandidateHomeScreen> {
                   setState(() => _locationFilter = v.toLowerCase()),
             ),
           ),
-          // Filter chips active (hiện khi có filter)
           if (hasFilter)
             Padding(
               padding:
@@ -271,10 +259,9 @@ class _CandidateHomeScreenState extends State<CandidateHomeScreen> {
                       children: [
                         if (_activeFilter.experience != null)
                           _filterChip(_activeFilter.experience!, () {
-                            setState(() => _activeFilter =
-                                JobFilter(
-                                    contractType:
-                                        _activeFilter.contractType));
+                            setState(() => _activeFilter = JobFilter(
+                                contractType:
+                                    _activeFilter.contractType));
                           }),
                         if (_activeFilter.contractType != null)
                           _filterChip(_activeFilter.contractType!, () {
@@ -298,33 +285,29 @@ class _CandidateHomeScreenState extends State<CandidateHomeScreen> {
               ),
             ),
           const SizedBox(height: 4),
-          // Category chips
           SizedBox(
             height: 44,
             child: ListView.builder(
               scrollDirection: Axis.horizontal,
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 12),
               itemCount: jobVM.categories.length,
               itemBuilder: (_, i) {
                 final cat = jobVM.categories[i];
                 final selected = jobVM.selectedCategory == cat ||
-                    (jobVM.selectedCategory.isEmpty &&
-                        cat == 'Tất cả');
+                    (jobVM.selectedCategory.isEmpty && cat == 'Tất cả');
                 return Padding(
                   padding: const EdgeInsets.only(right: 8),
                   child: ChoiceChip(
                     label: Text(cat),
                     selected: selected,
-                    onSelected: (_) => jobVM
-                        .setCategory(cat == 'Tất cả' ? '' : cat),
+                    onSelected: (_) =>
+                        jobVM.setCategory(cat == 'Tất cả' ? '' : cat),
                   ),
                 );
               },
             ),
           ),
           const SizedBox(height: 4),
-          // Danh sách việc làm
           Expanded(
             child: StreamBuilder<List<JobModel>>(
               stream: jobVM.getJobs(),
@@ -339,15 +322,9 @@ class _CandidateHomeScreenState extends State<CandidateHomeScreen> {
                 if (_keyword.isNotEmpty) {
                   jobs = jobs
                       .where((j) =>
-                          j.title
-                              .toLowerCase()
-                              .contains(_keyword) ||
-                          j.company
-                              .toLowerCase()
-                              .contains(_keyword) ||
-                          j.location
-                              .toLowerCase()
-                              .contains(_keyword))
+                          j.title.toLowerCase().contains(_keyword) ||
+                          j.company.toLowerCase().contains(_keyword) ||
+                          j.location.toLowerCase().contains(_keyword))
                       .toList();
                 }
 
@@ -360,17 +337,27 @@ class _CandidateHomeScreenState extends State<CandidateHomeScreen> {
                       .toList();
                 }
 
-                // Filter nâng cao (experience, contractType)
+                // FIX #3: Filter nâng cao thực sự lọc theo
+                // experience và contractType từ JobModel
                 if (!_activeFilter.isEmpty) {
                   jobs = jobs.where((j) {
-                    if (_activeFilter.experience != null) {
-                      // Lấy field experience từ job nếu có
-                      // Mặc định pass nếu job chưa có field này
+                    // Filter experience
+                    if (_activeFilter.experience != null &&
+                        j.experience != null &&
+                        j.experience!.isNotEmpty) {
+                      if (j.experience != _activeFilter.experience) {
+                        return false;
+                      }
                     }
-                    if (_activeFilter.contractType != null) {
-                      // Tương tự contractType
+                    // Filter contractType
+                    if (_activeFilter.contractType != null &&
+                        j.contractType != null &&
+                        j.contractType!.isNotEmpty) {
+                      if (j.contractType != _activeFilter.contractType) {
+                        return false;
+                      }
                     }
-                    return true; // Khi JobModel có thêm field mới thì filter ở đây
+                    return true;
                   }).toList();
                 }
 
@@ -380,13 +367,12 @@ class _CandidateHomeScreenState extends State<CandidateHomeScreen> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Icon(Icons.search_off,
-                            size: 64,
-                            color: Colors.grey.shade400),
+                            size: 64, color: Colors.grey.shade400),
                         const SizedBox(height: 12),
                         Text(
                           'Không tìm thấy việc làm phù hợp',
-                          style: TextStyle(
-                              color: Colors.grey.shade500),
+                          style:
+                              TextStyle(color: Colors.grey.shade500),
                         ),
                         if (hasFilter) ...[
                           const SizedBox(height: 8),
@@ -469,8 +455,7 @@ class _JobCard extends StatelessWidget {
                   children: [
                     Text(job.title,
                         style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 15)),
+                            fontWeight: FontWeight.bold, fontSize: 15)),
                     const SizedBox(height: 2),
                     Text(job.company,
                         style:
@@ -484,6 +469,15 @@ class _JobCard extends StatelessWidget {
                             Colors.red),
                         _tag(Icons.attach_money, job.salary,
                             Colors.green),
+                        // Hiển thị thêm experience và contractType nếu có
+                        if (job.experience != null &&
+                            job.experience!.isNotEmpty)
+                          _tag(Icons.work_history_outlined,
+                              job.experience!, Colors.purple),
+                        if (job.contractType != null &&
+                            job.contractType!.isNotEmpty)
+                          _tag(Icons.description_outlined,
+                              job.contractType!, Colors.teal),
                       ],
                     ),
                   ],
@@ -509,8 +503,8 @@ class _JobCard extends StatelessWidget {
         Icon(icon, size: 13, color: color),
         const SizedBox(width: 2),
         Text(text,
-            style: TextStyle(
-                fontSize: 12, color: Colors.grey.shade700)),
+            style:
+                TextStyle(fontSize: 12, color: Colors.grey.shade700)),
       ],
     );
   }

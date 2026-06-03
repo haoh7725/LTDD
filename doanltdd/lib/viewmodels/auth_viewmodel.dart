@@ -20,7 +20,7 @@ class AuthViewModel extends ChangeNotifier {
       user = firebaseUser;
       if (firebaseUser != null) {
         // Dùng ??= thay if-null (fix prefer_conditional_assignment)
-        userModel ??= await _authService.getUserData(firebaseUser.uid);
+        userModel = await _authService.getUserData(firebaseUser.uid);
       } else {
         userModel = null;
       }

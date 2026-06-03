@@ -19,6 +19,9 @@ class _EditJobSheetState extends State<EditJobSheet> {
   late final TextEditingController _salaryCtrl;
   late final TextEditingController _descCtrl;
   late String _category;
+  // FIX: Thêm experience và contractType vào form chỉnh sửa
+  String? _experience;
+  String? _contractType;
   bool _loading = false;
 
   final List<String> _categories = [
@@ -28,7 +31,6 @@ class _EditJobSheetState extends State<EditJobSheet> {
   @override
   void initState() {
     super.initState();
-    // Pre-fill tất cả fields từ job hiện tại
     _titleCtrl = TextEditingController(text: widget.job.title);
     _companyCtrl = TextEditingController(text: widget.job.company);
     _locationCtrl = TextEditingController(text: widget.job.location);
@@ -37,6 +39,8 @@ class _EditJobSheetState extends State<EditJobSheet> {
     _category = _categories.contains(widget.job.category)
         ? widget.job.category
         : 'IT';
+    _experience = widget.job.experience;
+    _contractType = widget.job.contractType;
   }
 
   @override
@@ -60,6 +64,8 @@ class _EditJobSheetState extends State<EditJobSheet> {
       'salary': _salaryCtrl.text.trim(),
       'description': _descCtrl.text.trim(),
       'category': _category,
+      if (_experience != null) 'experience': _experience,
+      if (_contractType != null) 'contractType': _contractType,
     });
     if (mounted) {
       Navigator.pop(context);
@@ -88,7 +94,6 @@ class _EditJobSheetState extends State<EditJobSheet> {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Header
               Row(
                 children: [
                   const Expanded(
@@ -105,7 +110,6 @@ class _EditJobSheetState extends State<EditJobSheet> {
                 ],
               ),
               const SizedBox(height: 16),
-
               TextFormField(
                 controller: _titleCtrl,
                 decoration: const InputDecoration(
@@ -117,7 +121,6 @@ class _EditJobSheetState extends State<EditJobSheet> {
                     : null,
               ),
               const SizedBox(height: 12),
-
               TextFormField(
                 controller: _companyCtrl,
                 decoration: const InputDecoration(
@@ -129,7 +132,6 @@ class _EditJobSheetState extends State<EditJobSheet> {
                     : null,
               ),
               const SizedBox(height: 12),
-
               TextFormField(
                 controller: _locationCtrl,
                 decoration: const InputDecoration(
@@ -141,7 +143,6 @@ class _EditJobSheetState extends State<EditJobSheet> {
                     : null,
               ),
               const SizedBox(height: 12),
-
               TextFormField(
                 controller: _salaryCtrl,
                 decoration: const InputDecoration(
@@ -153,9 +154,8 @@ class _EditJobSheetState extends State<EditJobSheet> {
                     : null,
               ),
               const SizedBox(height: 12),
-
               DropdownButtonFormField<String>(
-                initialValue: _category,
+                value: _category,
                 decoration: const InputDecoration(
                   labelText: 'Ngành nghề',
                   prefixIcon: Icon(Icons.category_outlined),
@@ -167,7 +167,40 @@ class _EditJobSheetState extends State<EditJobSheet> {
                 onChanged: (v) => setState(() => _category = v!),
               ),
               const SizedBox(height: 12),
-
+              // FIX: Thêm dropdown Experience
+              DropdownButtonFormField<String>(
+                value: _experience,
+                decoration: const InputDecoration(
+                  labelText: 'Kinh nghiệm',
+                  prefixIcon: Icon(Icons.work_history_outlined),
+                ),
+                items: [
+                  const DropdownMenuItem(
+                      value: null, child: Text('Không chọn')),
+                  ...['Không yêu cầu', 'Dưới 1 năm', '1-2 năm', '3-5 năm', '5+ năm']
+                      .map((e) =>
+                          DropdownMenuItem(value: e, child: Text(e))),
+                ],
+                onChanged: (v) => setState(() => _experience = v),
+              ),
+              const SizedBox(height: 12),
+              // FIX: Thêm dropdown ContractType
+              DropdownButtonFormField<String>(
+                value: _contractType,
+                decoration: const InputDecoration(
+                  labelText: 'Loại hợp đồng',
+                  prefixIcon: Icon(Icons.description_outlined),
+                ),
+                items: [
+                  const DropdownMenuItem(
+                      value: null, child: Text('Không chọn')),
+                  ...['Toàn thời gian', 'Bán thời gian', 'Thực tập', 'Remote', 'Freelance']
+                      .map((e) =>
+                          DropdownMenuItem(value: e, child: Text(e))),
+                ],
+                onChanged: (v) => setState(() => _contractType = v),
+              ),
+              const SizedBox(height: 12),
               TextFormField(
                 controller: _descCtrl,
                 decoration: const InputDecoration(
@@ -181,7 +214,6 @@ class _EditJobSheetState extends State<EditJobSheet> {
                     : null,
               ),
               const SizedBox(height: 20),
-
               _loading
                   ? const Center(child: CircularProgressIndicator())
                   : ElevatedButton.icon(

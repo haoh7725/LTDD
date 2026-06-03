@@ -32,8 +32,7 @@ class EmployerHomeScreen extends StatelessWidget {
             icon: const Icon(Icons.chat),
             tooltip: 'Tin nhắn',
             onPressed: () => Navigator.push(context,
-                MaterialPageRoute(
-                    builder: (_) => const ChatListScreen())),
+                MaterialPageRoute(builder: (_) => const ChatListScreen())),
           ),
           IconButton(
             icon: const Icon(Icons.logout),
@@ -42,8 +41,7 @@ class EmployerHomeScreen extends StatelessWidget {
                 context: context,
                 builder: (_) => AlertDialog(
                   title: const Text('Đăng xuất'),
-                  content:
-                      const Text('Bạn có chắc muốn đăng xuất?'),
+                  content: const Text('Bạn có chắc muốn đăng xuất?'),
                   actions: [
                     TextButton(
                       onPressed: () => Navigator.pop(context, false),
@@ -70,8 +68,7 @@ class EmployerHomeScreen extends StatelessWidget {
               stream: jobVM.getJobsByEmployer(auth.userModel!.uid),
               builder: (context, snap) {
                 if (snap.connectionState == ConnectionState.waiting) {
-                  return const Center(
-                      child: CircularProgressIndicator());
+                  return const Center(child: CircularProgressIndicator());
                 }
                 final jobs = snap.data ?? [];
                 if (jobs.isEmpty) {
@@ -83,8 +80,8 @@ class EmployerHomeScreen extends StatelessWidget {
                             size: 64, color: Colors.grey.shade400),
                         const SizedBox(height: 12),
                         Text('Chưa có tin tuyển dụng nào',
-                            style: TextStyle(
-                                color: Colors.grey.shade500)),
+                            style:
+                                TextStyle(color: Colors.grey.shade500)),
                         const SizedBox(height: 8),
                         Text('Nhấn nút + bên dưới để đăng tin',
                             style: TextStyle(
@@ -108,8 +105,7 @@ class EmployerHomeScreen extends StatelessWidget {
                           jobs[i].company.isNotEmpty
                               ? jobs[i].company[0].toUpperCase()
                               : 'C',
-                          style:
-                              const TextStyle(color: Colors.white),
+                          style: const TextStyle(color: Colors.white),
                         ),
                       ),
                       title: Text(jobs[i].title,
@@ -118,18 +114,24 @@ class EmployerHomeScreen extends StatelessWidget {
                       subtitle: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                              '${jobs[i].location} • ${jobs[i].salary}'),
+                          Text('${jobs[i].location} • ${jobs[i].salary}'),
                           Text(jobs[i].category,
                               style: const TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.grey)),
+                                  fontSize: 12, color: Colors.grey)),
+                          // Hiển thị experience và contractType nếu có
+                          if (jobs[i].experience != null)
+                            Text(jobs[i].experience!,
+                                style: const TextStyle(
+                                    fontSize: 11, color: Colors.purple)),
+                          if (jobs[i].contractType != null)
+                            Text(jobs[i].contractType!,
+                                style: const TextStyle(
+                                    fontSize: 11, color: Colors.teal)),
                         ],
                       ),
                       trailing: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          // Nút chỉnh sửa (MỚI)
                           IconButton(
                             icon: const Icon(Icons.edit_outlined,
                                 color: Colors.orange),
@@ -141,33 +143,29 @@ class EmployerHomeScreen extends StatelessWidget {
                                 borderRadius: BorderRadius.vertical(
                                     top: Radius.circular(20)),
                               ),
-                              builder: (_) =>
-                                  EditJobSheet(job: jobs[i]),
+                              builder: (_) => EditJobSheet(job: jobs[i]),
                             ),
                           ),
-                          // Nút xóa
                           IconButton(
                             icon: const Icon(Icons.delete_outline,
                                 color: Colors.red),
                             tooltip: 'Xóa tin',
                             onPressed: () async {
-                              final confirm =
-                                  await showDialog<bool>(
+                              final confirm = await showDialog<bool>(
                                 context: context,
                                 builder: (_) => AlertDialog(
-                                  title:
-                                      const Text('Xác nhận xóa'),
+                                  title: const Text('Xác nhận xóa'),
                                   content: Text(
                                       'Bạn có chắc muốn xóa tin "${jobs[i].title}"?'),
                                   actions: [
                                     TextButton(
-                                      onPressed: () => Navigator.pop(
-                                          context, false),
+                                      onPressed: () =>
+                                          Navigator.pop(context, false),
                                       child: const Text('Hủy'),
                                     ),
                                     TextButton(
-                                      onPressed: () => Navigator.pop(
-                                          context, true),
+                                      onPressed: () =>
+                                          Navigator.pop(context, true),
                                       child: const Text('Xóa',
                                           style: TextStyle(
                                               color: Colors.red)),
@@ -176,12 +174,10 @@ class EmployerHomeScreen extends StatelessWidget {
                                 ),
                               );
                               if (confirm == true) {
-                                await jobVM
-                                    .deleteJob(jobs[i].id);
+                                await jobVM.deleteJob(jobs[i].id);
                               }
                             },
                           ),
-                          // Nút xem ứng viên
                           IconButton(
                             icon: const Icon(Icons.people_outline,
                                 color: Color(0xFF1E88E5)),
@@ -237,6 +233,9 @@ class _PostJobSheetState extends State<_PostJobSheet> {
   final _salaryCtrl = TextEditingController();
   final _descCtrl = TextEditingController();
   String _category = 'IT';
+  // FIX: Thêm experience và contractType vào form đăng tin
+  String? _experience;
+  String? _contractType;
   bool _loading = false;
 
   final List<String> _categories = [
@@ -268,6 +267,8 @@ class _PostJobSheetState extends State<_PostJobSheet> {
       category: _category,
       employerId: auth.userModel!.uid,
       createdAt: DateTime.now(),
+      experience: _experience,
+      contractType: _contractType,
     ));
     if (mounted) Navigator.pop(context);
   }
@@ -303,8 +304,8 @@ class _PostJobSheetState extends State<_PostJobSheet> {
               const SizedBox(height: 12),
               TextFormField(
                 controller: _companyCtrl,
-                decoration: const InputDecoration(
-                    labelText: 'Tên công ty *'),
+                decoration:
+                    const InputDecoration(labelText: 'Tên công ty *'),
                 validator: (v) => v == null || v.trim().isEmpty
                     ? 'Vui lòng nhập tên công ty'
                     : null,
@@ -312,8 +313,8 @@ class _PostJobSheetState extends State<_PostJobSheet> {
               const SizedBox(height: 12),
               TextFormField(
                 controller: _locationCtrl,
-                decoration: const InputDecoration(
-                    labelText: 'Địa điểm *'),
+                decoration:
+                    const InputDecoration(labelText: 'Địa điểm *'),
                 validator: (v) => v == null || v.trim().isEmpty
                     ? 'Vui lòng nhập địa điểm'
                     : null,
@@ -329,14 +330,48 @@ class _PostJobSheetState extends State<_PostJobSheet> {
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
-                initialValue: _category,
+                value: _category,
                 decoration:
                     const InputDecoration(labelText: 'Ngành nghề'),
                 items: _categories
-                    .map((c) => DropdownMenuItem(
-                        value: c, child: Text(c)))
+                    .map((c) =>
+                        DropdownMenuItem(value: c, child: Text(c)))
                     .toList(),
                 onChanged: (v) => setState(() => _category = v!),
+              ),
+              const SizedBox(height: 12),
+              // FIX: Dropdown kinh nghiệm
+              DropdownButtonFormField<String>(
+                value: _experience,
+                decoration: const InputDecoration(
+                  labelText: 'Kinh nghiệm',
+                  prefixIcon: Icon(Icons.work_history_outlined),
+                ),
+                items: [
+                  const DropdownMenuItem(
+                      value: null, child: Text('Không chọn')),
+                  ...['Không yêu cầu', 'Dưới 1 năm', '1-2 năm', '3-5 năm', '5+ năm']
+                      .map((e) =>
+                          DropdownMenuItem(value: e, child: Text(e))),
+                ],
+                onChanged: (v) => setState(() => _experience = v),
+              ),
+              const SizedBox(height: 12),
+              // FIX: Dropdown loại hợp đồng
+              DropdownButtonFormField<String>(
+                value: _contractType,
+                decoration: const InputDecoration(
+                  labelText: 'Loại hợp đồng',
+                  prefixIcon: Icon(Icons.description_outlined),
+                ),
+                items: [
+                  const DropdownMenuItem(
+                      value: null, child: Text('Không chọn')),
+                  ...['Toàn thời gian', 'Bán thời gian', 'Thực tập', 'Remote', 'Freelance']
+                      .map((e) =>
+                          DropdownMenuItem(value: e, child: Text(e))),
+                ],
+                onChanged: (v) => setState(() => _contractType = v),
               ),
               const SizedBox(height: 12),
               TextFormField(

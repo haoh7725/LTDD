@@ -33,13 +33,34 @@ class _SplashScreenState extends State<SplashScreen>
   }
 
   Future<void> _navigate() async {
+    // Đợi tối thiểu 2 giây để hiển thị splash
     await Future.delayed(const Duration(seconds: 2));
     if (!mounted) return;
+
     final auth = context.read<AuthViewModel>();
-    while (auth.isLoading) {
-      await Future.delayed(const Duration(milliseconds: 100));
+
+    // FIX #6: Thay vì busy-wait loop (có thể vô hạn),
+    // dùng listener để chờ isLoading = false một lần duy nhất
+    if (auth.isLoading) {
+      await _waitForAuth(auth);
     }
+
     if (!mounted) return;
+    _goToNextScreen(auth);
+  }
+
+  /// Chờ AuthViewModel hoàn tất load, timeout sau 5 giây
+  Future<void> _waitForAuth(AuthViewModel auth) {
+    final completer = Future<void>(() {});
+    return Future.any([
+      Future.delayed(const Duration(seconds: 5)),
+      Stream.periodic(const Duration(milliseconds: 100))
+          .firstWhere((_) => !auth.isLoading)
+          .then((_) {}),
+    ]);
+  }
+
+  void _goToNextScreen(AuthViewModel auth) {
     Widget next;
     if (auth.user == null) {
       next = const LoginScreen();
@@ -57,7 +78,6 @@ class _SplashScreenState extends State<SplashScreen>
     }
     Navigator.of(context).pushReplacement(
       PageRouteBuilder(
-        // fix: unnecessary_underscores — đặt tên đầy đủ cho params không dùng
         pageBuilder: (context, animation, secondaryAnimation) => next,
         transitionsBuilder:
             (context, animation, secondaryAnimation, child) =>

@@ -1,5 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/job_model.dart';
+// Export JobModel để các file import job_service.dart
+// không cần import job_model.dart riêng nữa
+export '../models/job_model.dart';
 
 class JobService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
@@ -41,22 +44,23 @@ class JobService {
     String? category,
     DocumentSnapshot? lastDoc,
   }) async {
-    Query query = _db
-        .collection('jobs')
-        .orderBy('createdAt', descending: true)
-        .limit(pageSize);
+    // FIX #2: Build query trước, rồi mới append startAfterDocument
+    // tránh lastDoc bị bỏ qua khi có category filter
+    Query query = _db.collection('jobs').orderBy('createdAt', descending: true);
 
     if (category != null && category.isNotEmpty) {
       query = _db
           .collection('jobs')
           .where('category', isEqualTo: category)
-          .orderBy('createdAt', descending: true)
-          .limit(pageSize);
+          .orderBy('createdAt', descending: true);
     }
 
+    // Append pagination SAU khi đã build filter
     if (lastDoc != null) {
       query = query.startAfterDocument(lastDoc);
     }
+
+    query = query.limit(pageSize);
 
     final snap = await query.get();
     final jobs = snap.docs
