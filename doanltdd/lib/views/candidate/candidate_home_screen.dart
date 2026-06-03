@@ -3,10 +3,14 @@ import 'package:provider/provider.dart';
 import '../../viewmodels/auth_viewmodel.dart';
 import '../../viewmodels/job_viewmodel.dart';
 import '../../models/job_model.dart';
+import '../../models/filter_model.dart';
 import '../../services/notification_service.dart';
+import '../../services/fcm_service.dart';
 import 'job_detail_screen.dart';
 import 'my_applications_screen.dart';
+import 'saved_jobs_screen.dart';
 import 'profile_screen.dart';
+import 'filter_sheet.dart';
 import '../chat/chat_list_screen.dart';
 import '../notifications/notifications_screen.dart';
 
@@ -19,15 +23,40 @@ class CandidateHomeScreen extends StatefulWidget {
 
 class _CandidateHomeScreenState extends State<CandidateHomeScreen> {
   final _searchCtrl = TextEditingController();
-  final _notifService = NotificationService(); // ✅ fix 2
+  final _notifService = NotificationService();
   String _keyword = '';
   String _locationFilter = '';
+  JobFilter _activeFilter = const JobFilter();
   int _currentIndex = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    // Init FCM sau khi widget build xong
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final uid = context.read<AuthViewModel>().userModel?.uid;
+      if (uid != null) FcmService().init(uid);
+    });
+  }
 
   @override
   void dispose() {
     _searchCtrl.dispose();
     super.dispose();
+  }
+
+  void _openFilter() async {
+    final result = await showModalBottomSheet<JobFilter>(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => FilterSheet(current: _activeFilter),
+    );
+    if (result != null) {
+      setState(() => _activeFilter = result);
+    }
   }
 
   @override
@@ -39,6 +68,7 @@ class _CandidateHomeScreenState extends State<CandidateHomeScreen> {
     final pages = [
       _buildJobList(auth, jobVM, uid),
       const MyApplicationsScreen(),
+      const SavedJobsScreen(),
       const ChatListScreen(),
       const ProfileScreen(),
     ];
@@ -49,16 +79,25 @@ class _CandidateHomeScreenState extends State<CandidateHomeScreen> {
         selectedIndex: _currentIndex,
         onDestinationSelected: (i) => setState(() => _currentIndex = i),
         destinations: const [
-          NavigationDestination(icon: Icon(Icons.search), label: 'Tìm việc'),
-          NavigationDestination(icon: Icon(Icons.assignment), label: 'Đơn ứng tuyển'),
-          NavigationDestination(icon: Icon(Icons.chat), label: 'Tin nhắn'),
-          NavigationDestination(icon: Icon(Icons.person), label: 'Hồ sơ'),
+          NavigationDestination(
+              icon: Icon(Icons.search), label: 'Tìm việc'),
+          NavigationDestination(
+              icon: Icon(Icons.assignment), label: 'Đơn của tôi'),
+          NavigationDestination(
+              icon: Icon(Icons.bookmark_border), label: 'Đã lưu'),
+          NavigationDestination(
+              icon: Icon(Icons.chat), label: 'Tin nhắn'),
+          NavigationDestination(
+              icon: Icon(Icons.person), label: 'Hồ sơ'),
         ],
       ),
     );
   }
 
-  Widget _buildJobList(AuthViewModel auth, JobViewModel jobVM, String uid) {
+  Widget _buildJobList(
+      AuthViewModel auth, JobViewModel jobVM, String uid) {
+    final hasFilter = !_activeFilter.isEmpty;
+
     return Scaffold(
       appBar: AppBar(
         title: Column(
@@ -72,8 +111,34 @@ class _CandidateHomeScreenState extends State<CandidateHomeScreen> {
           ],
         ),
         actions: [
+          // Nút filter với badge khi có filter đang active
+          Stack(
+            children: [
+              IconButton(
+                icon: Icon(hasFilter
+                    ? Icons.filter_alt
+                    : Icons.filter_alt_outlined),
+                tooltip: 'Bộ lọc nâng cao',
+                onPressed: _openFilter,
+              ),
+              if (hasFilter)
+                Positioned(
+                  right: 6,
+                  top: 6,
+                  child: Container(
+                    width: 8,
+                    height: 8,
+                    decoration: const BoxDecoration(
+                      color: Colors.orange,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          // Nút thông báo với badge
           StreamBuilder<int>(
-            stream: _notifService.getUnreadCount(uid), // ✅ fix 2
+            stream: _notifService.getUnreadCount(uid),
             builder: (context, snap) {
               final count = snap.data ?? 0;
               return Stack(
@@ -112,7 +177,7 @@ class _CandidateHomeScreenState extends State<CandidateHomeScreen> {
               );
             },
           ),
-          // ✅ fix 3 — logout có confirm
+          // Logout
           IconButton(
             icon: const Icon(Icons.logout),
             onPressed: () async {
@@ -135,6 +200,9 @@ class _CandidateHomeScreenState extends State<CandidateHomeScreen> {
                 ),
               );
               if (confirm == true && context.mounted) {
+                // Clear FCM token trước khi logout
+                final uid2 = auth.userModel?.uid;
+                if (uid2 != null) await FcmService().clearToken(uid2);
                 auth.logout();
               }
             },
@@ -143,6 +211,7 @@ class _CandidateHomeScreenState extends State<CandidateHomeScreen> {
       ),
       body: Column(
         children: [
+          // Thanh tìm kiếm
           Padding(
             padding: const EdgeInsets.fromLTRB(12, 12, 12, 4),
             child: TextField(
@@ -160,15 +229,18 @@ class _CandidateHomeScreenState extends State<CandidateHomeScreen> {
                       )
                     : null,
               ),
-              onChanged: (v) => setState(() => _keyword = v.toLowerCase()),
+              onChanged: (v) =>
+                  setState(() => _keyword = v.toLowerCase()),
             ),
           ),
+          // Lọc theo địa điểm
           Padding(
             padding: const EdgeInsets.fromLTRB(12, 4, 12, 0),
             child: TextField(
               decoration: InputDecoration(
                 hintText: 'Lọc theo địa điểm (VD: Hồ Chí Minh)',
-                prefixIcon: const Icon(Icons.location_on, size: 20),
+                prefixIcon:
+                    const Icon(Icons.location_on, size: 20),
                 suffixIcon: _locationFilter.isNotEmpty
                     ? IconButton(
                         icon: const Icon(Icons.clear),
@@ -183,46 +255,103 @@ class _CandidateHomeScreenState extends State<CandidateHomeScreen> {
                   setState(() => _locationFilter = v.toLowerCase()),
             ),
           ),
-          const SizedBox(height: 8),
+          // Filter chips active (hiện khi có filter)
+          if (hasFilter)
+            Padding(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              child: Row(
+                children: [
+                  const Icon(Icons.filter_alt,
+                      size: 16, color: Colors.orange),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Wrap(
+                      spacing: 6,
+                      children: [
+                        if (_activeFilter.experience != null)
+                          _filterChip(_activeFilter.experience!, () {
+                            setState(() => _activeFilter =
+                                JobFilter(
+                                    contractType:
+                                        _activeFilter.contractType));
+                          }),
+                        if (_activeFilter.contractType != null)
+                          _filterChip(_activeFilter.contractType!, () {
+                            setState(() => _activeFilter = JobFilter(
+                                experience: _activeFilter.experience));
+                          }),
+                      ],
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () =>
+                        setState(() => _activeFilter = const JobFilter()),
+                    style: TextButton.styleFrom(
+                        padding: EdgeInsets.zero,
+                        minimumSize: Size.zero),
+                    child: const Text('Xóa tất cả',
+                        style:
+                            TextStyle(color: Colors.red, fontSize: 12)),
+                  ),
+                ],
+              ),
+            ),
+          const SizedBox(height: 4),
+          // Category chips
           SizedBox(
             height: 44,
             child: ListView.builder(
               scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 12),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 12),
               itemCount: jobVM.categories.length,
               itemBuilder: (_, i) {
                 final cat = jobVM.categories[i];
                 final selected = jobVM.selectedCategory == cat ||
-                    (jobVM.selectedCategory.isEmpty && cat == 'Tất cả');
+                    (jobVM.selectedCategory.isEmpty &&
+                        cat == 'Tất cả');
                 return Padding(
                   padding: const EdgeInsets.only(right: 8),
                   child: ChoiceChip(
                     label: Text(cat),
                     selected: selected,
-                    onSelected: (_) =>
-                        jobVM.setCategory(cat == 'Tất cả' ? '' : cat),
+                    onSelected: (_) => jobVM
+                        .setCategory(cat == 'Tất cả' ? '' : cat),
                   ),
                 );
               },
             ),
           ),
           const SizedBox(height: 4),
+          // Danh sách việc làm
           Expanded(
             child: StreamBuilder<List<JobModel>>(
               stream: jobVM.getJobs(),
               builder: (context, snap) {
                 if (snap.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
+                  return const Center(
+                      child: CircularProgressIndicator());
                 }
                 var jobs = snap.data ?? [];
+
+                // Filter keyword
                 if (_keyword.isNotEmpty) {
                   jobs = jobs
                       .where((j) =>
-                          j.title.toLowerCase().contains(_keyword) ||
-                          j.company.toLowerCase().contains(_keyword) ||
-                          j.location.toLowerCase().contains(_keyword))
+                          j.title
+                              .toLowerCase()
+                              .contains(_keyword) ||
+                          j.company
+                              .toLowerCase()
+                              .contains(_keyword) ||
+                          j.location
+                              .toLowerCase()
+                              .contains(_keyword))
                       .toList();
                 }
+
+                // Filter location
                 if (_locationFilter.isNotEmpty) {
                   jobs = jobs
                       .where((j) => j.location
@@ -230,21 +359,48 @@ class _CandidateHomeScreenState extends State<CandidateHomeScreen> {
                           .contains(_locationFilter))
                       .toList();
                 }
+
+                // Filter nâng cao (experience, contractType)
+                if (!_activeFilter.isEmpty) {
+                  jobs = jobs.where((j) {
+                    if (_activeFilter.experience != null) {
+                      // Lấy field experience từ job nếu có
+                      // Mặc định pass nếu job chưa có field này
+                    }
+                    if (_activeFilter.contractType != null) {
+                      // Tương tự contractType
+                    }
+                    return true; // Khi JobModel có thêm field mới thì filter ở đây
+                  }).toList();
+                }
+
                 if (jobs.isEmpty) {
                   return Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Icon(Icons.search_off,
-                            size: 64, color: Colors.grey.shade400),
+                            size: 64,
+                            color: Colors.grey.shade400),
                         const SizedBox(height: 12),
-                        Text('Không tìm thấy việc làm phù hợp',
-                            style:
-                                TextStyle(color: Colors.grey.shade500)),
+                        Text(
+                          'Không tìm thấy việc làm phù hợp',
+                          style: TextStyle(
+                              color: Colors.grey.shade500),
+                        ),
+                        if (hasFilter) ...[
+                          const SizedBox(height: 8),
+                          TextButton(
+                            onPressed: () => setState(() =>
+                                _activeFilter = const JobFilter()),
+                            child: const Text('Xóa bộ lọc'),
+                          ),
+                        ],
                       ],
                     ),
                   );
                 }
+
                 return ListView.builder(
                   padding: const EdgeInsets.all(12),
                   itemCount: jobs.length,
@@ -255,6 +411,20 @@ class _CandidateHomeScreenState extends State<CandidateHomeScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _filterChip(String label, VoidCallback onRemove) {
+    return Chip(
+      label: Text(label,
+          style: const TextStyle(fontSize: 12, color: Colors.orange)),
+      deleteIcon:
+          const Icon(Icons.close, size: 14, color: Colors.orange),
+      onDeleted: onRemove,
+      backgroundColor: Colors.orange.withValues(alpha: 0.1),
+      side: const BorderSide(color: Colors.orange),
+      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      padding: EdgeInsets.zero,
     );
   }
 }
@@ -299,17 +469,21 @@ class _JobCard extends StatelessWidget {
                   children: [
                     Text(job.title,
                         style: const TextStyle(
-                            fontWeight: FontWeight.bold, fontSize: 15)),
+                            fontWeight: FontWeight.bold,
+                            fontSize: 15)),
                     const SizedBox(height: 2),
                     Text(job.company,
-                        style: TextStyle(color: Colors.grey.shade700)),
+                        style:
+                            TextStyle(color: Colors.grey.shade700)),
                     const SizedBox(height: 6),
                     Wrap(
                       spacing: 8,
                       runSpacing: 4,
                       children: [
-                        _tag(Icons.location_on, job.location, Colors.red),
-                        _tag(Icons.attach_money, job.salary, Colors.green),
+                        _tag(Icons.location_on, job.location,
+                            Colors.red),
+                        _tag(Icons.attach_money, job.salary,
+                            Colors.green),
                       ],
                     ),
                   ],
@@ -335,7 +509,8 @@ class _JobCard extends StatelessWidget {
         Icon(icon, size: 13, color: color),
         const SizedBox(width: 2),
         Text(text,
-            style: TextStyle(fontSize: 12, color: Colors.grey.shade700)),
+            style: TextStyle(
+                fontSize: 12, color: Colors.grey.shade700)),
       ],
     );
   }

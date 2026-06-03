@@ -33,6 +33,10 @@ class JobViewModel extends ChangeNotifier {
     await _jobService.addJob(job);
   }
 
+  Future<void> updateJob(String jobId, Map<String, dynamic> data) async {
+    await _jobService.updateJob(jobId, data);
+  }
+
   Future<void> deleteJob(String jobId) async {
     await _jobService.deleteJob(jobId);
   }

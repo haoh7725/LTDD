@@ -1,7 +1,11 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../viewmodels/auth_viewmodel.dart';
+import '../../services/cv_service.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -17,8 +21,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
   final _bioCtrl = TextEditingController();
   final _skillsCtrl = TextEditingController();
   final _expCtrl = TextEditingController();
+  final _cvService = CvService();
+
   bool _loading = false;
   bool _editing = false;
+  bool _cvLoading = false;
+
+  // CV info
+  String? _cvUrl;
+  String? _cvName;
 
   @override
   void initState() {
@@ -30,8 +41,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final auth = context.read<AuthViewModel>();
     final uid = auth.userModel?.uid;
     if (uid == null) return;
-    final doc =
-        await FirebaseFirestore.instance.collection('users').doc(uid).get();
+    final doc = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(uid)
+        .get();
     final data = doc.data();
     if (data != null) {
       _nameCtrl.text = data['fullName'] ?? '';
@@ -39,6 +52,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
       _bioCtrl.text = data['bio'] ?? '';
       _skillsCtrl.text = data['skills'] ?? '';
       _expCtrl.text = data['experience'] ?? '';
+      _cvUrl = data['cvUrl'];
+      _cvName = data['cvName'];
     }
     setState(() {});
   }
@@ -63,6 +78,96 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Cập nhật hồ sơ thành công!')),
       );
+    }
+  }
+
+  Future<void> _pickAndUploadCv() async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['pdf', 'doc', 'docx'],
+    );
+    if (result == null || result.files.isEmpty) return;
+
+    final filePath = result.files.single.path;
+    if (filePath == null) return;
+
+    final file = File(filePath);
+    final fileName = result.files.single.name;
+
+    setState(() => _cvLoading = true);
+
+    try {
+      final auth = context.read<AuthViewModel>();
+      final uid = auth.userModel!.uid;
+      final url = await _cvService.uploadCv(uid, file, fileName);
+      setState(() {
+        _cvUrl = url;
+        _cvName = fileName;
+        _cvLoading = false;
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Upload CV thành công!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      setState(() => _cvLoading = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Lỗi upload: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _deleteCv() async {
+    if (_cvName == null) return;
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Xóa CV'),
+        content: const Text('Bạn có chắc muốn xóa CV này?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Hủy'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child:
+                const Text('Xóa', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+    if (confirm != true) return;
+
+    setState(() => _cvLoading = true);
+    final auth = context.read<AuthViewModel>();
+    await _cvService.deleteCv(auth.userModel!.uid, _cvName!);
+    setState(() {
+      _cvUrl = null;
+      _cvName = null;
+      _cvLoading = false;
+    });
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Đã xóa CV')),
+      );
+    }
+  }
+
+  Future<void> _openCv() async {
+    if (_cvUrl == null) return;
+    final uri = Uri.parse(_cvUrl!);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
     }
   }
 
@@ -93,7 +198,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
           else
             TextButton(
               onPressed: () => setState(() => _editing = false),
-              child: const Text('Hủy', style: TextStyle(color: Colors.white)),
+              child: const Text('Hủy',
+                  style: TextStyle(color: Colors.white)),
             ),
         ],
       ),
@@ -121,7 +227,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                     const SizedBox(height: 8),
                     Text(user?.email ?? '',
-                        style: TextStyle(color: Colors.grey.shade600)),
+                        style:
+                            TextStyle(color: Colors.grey.shade600)),
                     const SizedBox(height: 4),
                     Container(
                       padding: const EdgeInsets.symmetric(
@@ -140,6 +247,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
               const SizedBox(height: 28),
 
+              // ── Thông tin cá nhân ──────────────────────────────────────
               _sectionTitle('Thông tin cá nhân'),
               const SizedBox(height: 12),
               _buildField(
@@ -147,8 +255,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 label: 'Họ và tên',
                 icon: Icons.person,
                 enabled: _editing,
-                validator: (v) =>
-                    v == null || v.trim().isEmpty ? 'Vui lòng nhập họ tên' : null,
+                validator: (v) => v == null || v.trim().isEmpty
+                    ? 'Vui lòng nhập họ tên'
+                    : null,
               ),
               const SizedBox(height: 12),
               _buildField(
@@ -168,6 +277,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
               const SizedBox(height: 20),
 
+              // ── Kỹ năng & Kinh nghiệm ─────────────────────────────────
               _sectionTitle('Kỹ năng & Kinh nghiệm'),
               const SizedBox(height: 12),
               _buildField(
@@ -185,8 +295,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 enabled: _editing,
                 maxLines: 4,
               ),
+              const SizedBox(height: 20),
+
+              // ── CV / Hồ sơ ────────────────────────────────────────────
+              _sectionTitle('CV / Hồ sơ đính kèm'),
+              const SizedBox(height: 12),
+              _buildCvSection(),
               const SizedBox(height: 28),
 
+              // Nút lưu
               if (_editing)
                 _loading
                     ? const Center(child: CircularProgressIndicator())
@@ -202,15 +319,82 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  Widget _buildCvSection() {
+    if (_cvLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (_cvUrl != null && _cvName != null) {
+      // Đã có CV
+      return Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.green.shade50,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Colors.green.shade200),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.description, color: Colors.green,
+                size: 36),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    _cvName!,
+                    style: const TextStyle(
+                        fontWeight: FontWeight.w600, fontSize: 14),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const Text('Đã tải lên',
+                      style: TextStyle(
+                          color: Colors.green, fontSize: 12)),
+                ],
+              ),
+            ),
+            // Nút xem
+            IconButton(
+              icon: const Icon(Icons.open_in_new,
+                  color: Color(0xFF1E88E5)),
+              tooltip: 'Xem CV',
+              onPressed: _openCv,
+            ),
+            // Nút xóa
+            IconButton(
+              icon: const Icon(Icons.delete_outline, color: Colors.red),
+              tooltip: 'Xóa CV',
+              onPressed: _deleteCv,
+            ),
+          ],
+        ),
+      );
+    }
+
+    // Chưa có CV
+    return OutlinedButton.icon(
+      icon: const Icon(Icons.upload_file),
+      label: const Text('Tải lên CV (PDF / Word)'),
+      style: OutlinedButton.styleFrom(
+        minimumSize: const Size(double.infinity, 48),
+        side: const BorderSide(color: Color(0xFF1E88E5)),
+      ),
+      onPressed: _pickAndUploadCv,
+    );
+  }
+
   Widget _sectionTitle(String title) {
     return Row(
       children: [
         Container(
-            width: 4,
-            height: 20,
-            decoration: BoxDecoration(
-                color: const Color(0xFF1E88E5),
-                borderRadius: BorderRadius.circular(2))),
+          width: 4,
+          height: 20,
+          decoration: BoxDecoration(
+              color: const Color(0xFF1E88E5),
+              borderRadius: BorderRadius.circular(2)),
+        ),
         const SizedBox(width: 8),
         Text(title,
             style: const TextStyle(

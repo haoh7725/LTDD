@@ -57,9 +57,11 @@ class _SplashScreenState extends State<SplashScreen>
     }
     Navigator.of(context).pushReplacement(
       PageRouteBuilder(
-        pageBuilder: (_, __, ___) => next,
-        transitionsBuilder: (_, animation, _, child) =>  // fixed: unnecessary underscores
-            FadeTransition(opacity: animation, child: child),
+        // fix: unnecessary_underscores — đặt tên đầy đủ cho params không dùng
+        pageBuilder: (context, animation, secondaryAnimation) => next,
+        transitionsBuilder:
+            (context, animation, secondaryAnimation, child) =>
+                FadeTransition(opacity: animation, child: child),
         transitionDuration: const Duration(milliseconds: 500),
       ),
     );
@@ -91,7 +93,7 @@ class _SplashScreenState extends State<SplashScreen>
                     borderRadius: BorderRadius.circular(24),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.2), // fixed: withOpacity → withValues
+                        color: Colors.black.withValues(alpha: 0.2),
                         blurRadius: 20,
                         offset: const Offset(0, 8),
                       )

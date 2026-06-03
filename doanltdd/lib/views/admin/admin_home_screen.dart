@@ -67,8 +67,10 @@ class _UsersTab extends StatelessWidget {
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance.collection('users').snapshots(),
       builder: (context, snap) {
-        if (!snap.hasData)
+        // fix: curly_braces_in_flow_control_structures
+        if (!snap.hasData) {
           return const Center(child: CircularProgressIndicator());
+        }
         final docs = snap.data!.docs;
         return ListView.builder(
           padding: const EdgeInsets.all(12),
@@ -161,8 +163,10 @@ class _JobsTab extends StatelessWidget {
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance.collection('jobs').snapshots(),
       builder: (context, snap) {
-        if (!snap.hasData)
+        // fix: curly_braces_in_flow_control_structures
+        if (!snap.hasData) {
           return const Center(child: CircularProgressIndicator());
+        }
         final docs = snap.data!.docs;
         return ListView.builder(
           padding: const EdgeInsets.all(12),
@@ -173,7 +177,8 @@ class _JobsTab extends StatelessWidget {
             return Card(
               child: ListTile(
                 title: Text(data['title'] ?? ''),
-                subtitle: Text('${data['company']} • ${data['category']}'),
+                subtitle: Text(
+                    '${data['company']} • ${data['category']}'),
                 trailing: IconButton(
                   icon: const Icon(Icons.delete, color: Colors.red),
                   onPressed: () async {
@@ -185,11 +190,13 @@ class _JobsTab extends StatelessWidget {
                             'Bạn có chắc muốn xóa tin "${data['title']}"?'),
                         actions: [
                           TextButton(
-                            onPressed: () => Navigator.pop(context, false),
+                            onPressed: () =>
+                                Navigator.pop(context, false),
                             child: const Text('Hủy'),
                           ),
                           TextButton(
-                            onPressed: () => Navigator.pop(context, true),
+                            onPressed: () =>
+                                Navigator.pop(context, true),
                             child: const Text('Xóa',
                                 style: TextStyle(color: Colors.red)),
                           ),

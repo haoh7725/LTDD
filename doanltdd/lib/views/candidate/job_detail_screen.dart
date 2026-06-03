@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../models/job_model.dart';
 import '../../viewmodels/auth_viewmodel.dart';
 import '../../viewmodels/job_viewmodel.dart';
+import '../../services/bookmark_service.dart';
 import '../chat/chat_screen.dart';
 
 class JobDetailScreen extends StatelessWidget {
@@ -13,16 +14,50 @@ class JobDetailScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final auth = context.read<AuthViewModel>();
     final jobVM = context.read<JobViewModel>();
+    final bookmarkService = BookmarkService();
+    final uid = auth.userModel!.uid;
 
     return Scaffold(
-      appBar: AppBar(title: Text(job.title)),
+      appBar: AppBar(
+        title: Text(job.title),
+        actions: [
+          // Nút bookmark
+          StreamBuilder<List<String>>(
+            stream: bookmarkService.getBookmarkedJobIds(uid),
+            builder: (context, snap) {
+              final ids = snap.data ?? [];
+              final isSaved = ids.contains(job.id);
+              return IconButton(
+                icon: Icon(
+                  isSaved ? Icons.bookmark : Icons.bookmark_border,
+                  color: Colors.white,
+                ),
+                tooltip: isSaved ? 'Bỏ lưu' : 'Lưu việc làm',
+                onPressed: () async {
+                  await bookmarkService.toggleBookmark(uid, job.id);
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(isSaved
+                            ? 'Đã bỏ lưu việc làm'
+                            : 'Đã lưu việc làm'),
+                        duration: const Duration(seconds: 2),
+                      ),
+                    );
+                  }
+                },
+              );
+            },
+          ),
+        ],
+      ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Card(
-              color: const Color(0xFF1E88E5).withValues(alpha: 0.05), // fixed
+              color: const Color(0xFF1E88E5).withValues(alpha: 0.05),
               child: Padding(
                 padding: const EdgeInsets.all(16),
                 child: Row(
@@ -61,13 +96,17 @@ class JobDetailScreen extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             _infoCard([
-              _infoRow(Icons.location_on, 'Địa điểm', job.location, Colors.red),
-              _infoRow(Icons.attach_money, 'Mức lương', job.salary, Colors.green),
-              _infoRow(Icons.category, 'Ngành nghề', job.category, Colors.blue),
+              _infoRow(Icons.location_on, 'Địa điểm', job.location,
+                  Colors.red),
+              _infoRow(Icons.attach_money, 'Mức lương', job.salary,
+                  Colors.green),
+              _infoRow(
+                  Icons.category, 'Ngành nghề', job.category, Colors.blue),
             ]),
             const SizedBox(height: 16),
             const Text('Mô tả công việc',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                style:
+                    TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
             Text(job.description, style: const TextStyle(height: 1.6)),
             const SizedBox(height: 28),
@@ -94,7 +133,8 @@ class JobDetailScreen extends StatelessWidget {
                   if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
-                        content: Text(e.toString().replaceAll('Exception: ', '')),
+                        content: Text(
+                            e.toString().replaceAll('Exception: ', '')),
                         backgroundColor: Colors.orange,
                       ),
                     );
@@ -106,7 +146,8 @@ class JobDetailScreen extends StatelessWidget {
             ElevatedButton.icon(
               icon: const Icon(Icons.chat),
               label: const Text('Nhắn tin với nhà tuyển dụng'),
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+              style:
+                  ElevatedButton.styleFrom(backgroundColor: Colors.green),
               onPressed: () => Navigator.push(
                 context,
                 MaterialPageRoute(
@@ -132,14 +173,16 @@ class JobDetailScreen extends StatelessWidget {
     );
   }
 
-  Widget _infoRow(IconData icon, String label, String value, Color color) {
+  Widget _infoRow(
+      IconData icon, String label, String value, Color color) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
         children: [
           Icon(icon, size: 20, color: color),
           const SizedBox(width: 8),
-          Text('$label: ', style: const TextStyle(fontWeight: FontWeight.w500)),
+          Text('$label: ',
+              style: const TextStyle(fontWeight: FontWeight.w500)),
           Expanded(child: Text(value)),
         ],
       ),

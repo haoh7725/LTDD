@@ -31,11 +31,11 @@ class ChatService {
       'senderId': senderId,
       'senderName': senderName,
       'content': content,
-      'createdAt': DateTime.now(),
+      'createdAt': FieldValue.serverTimestamp(),
     });
     await _db.collection('chats').doc(chatId).set({
       'lastMessage': content,
-      'updatedAt': DateTime.now(),
+      'updatedAt': FieldValue.serverTimestamp(),
       'participants': chatId.split('_'),
     }, SetOptions(merge: true));
   }
