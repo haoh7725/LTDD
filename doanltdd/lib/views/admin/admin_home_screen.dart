@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../viewmodels/auth_viewmodel.dart';
 import '../auth/login_screen.dart';
 import '../../services/report_service.dart';
+import '../../services/notification_service.dart';
 
 class AdminHomeScreen extends StatelessWidget {
   const AdminHomeScreen({super.key});
@@ -63,7 +64,7 @@ class AdminHomeScreen extends StatelessWidget {
             _StatsTab(),
             _UsersTab(),
             _JobsTab(),
-            _ReportsTab(), 
+            _ReportsTab(),
           ],
         ),
       ),
@@ -109,8 +110,6 @@ class _StatsTab extends StatelessWidget {
           const Text('Tổng quan',
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
           const SizedBox(height: 12),
-
-          // Row 1: Users, Jobs, Applications
           Row(
             children: [
               Expanded(
@@ -141,13 +140,10 @@ class _StatsTab extends StatelessWidget {
               ),
             ],
           ),
-
           const SizedBox(height: 20),
           const Text('Người dùng theo vai trò',
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
           const SizedBox(height: 12),
-
-          // Row 2: Candidates, Employers, Admins
           Row(
             children: [
               Expanded(
@@ -181,13 +177,10 @@ class _StatsTab extends StatelessWidget {
               ),
             ],
           ),
-
           const SizedBox(height: 20),
           const Text('Đơn ứng tuyển theo trạng thái',
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
           const SizedBox(height: 12),
-
-          // Row 3: Pending, Accepted, Rejected
           Row(
             children: [
               Expanded(
@@ -221,13 +214,10 @@ class _StatsTab extends StatelessWidget {
               ),
             ],
           ),
-
           const SizedBox(height: 20),
           const Text('Hoạt động gần đây',
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
           const SizedBox(height: 12),
-
-          // Recent jobs
           StreamBuilder<QuerySnapshot>(
             stream: FirebaseFirestore.instance
                 .collection('jobs')
@@ -253,16 +243,15 @@ class _StatsTab extends StatelessWidget {
                   const SizedBox(height: 8),
                   ...docs.map((d) {
                     final data = d.data() as Map<String, dynamic>;
-                    final createdAt =
-                        (data['createdAt'] as dynamic)?.toDate();
-                    final timeStr = createdAt != null
-                        ? _timeAgo(createdAt)
-                        : '';
+                    final createdAt = (data['createdAt'] as dynamic)?.toDate();
+                    final timeStr =
+                        createdAt != null ? _timeAgo(createdAt) : '';
                     return ListTile(
                       contentPadding: EdgeInsets.zero,
                       leading: CircleAvatar(
                         backgroundColor: Colors.green.shade100,
-                        child: const Icon(Icons.work, color: Colors.green, size: 20),
+                        child: const Icon(Icons.work,
+                            color: Colors.green, size: 20),
                       ),
                       title: Text(data['title'] ?? '',
                           style: const TextStyle(fontSize: 14)),
@@ -515,12 +504,16 @@ class _JobsTab extends StatelessWidget {
     );
   }
 }
+
+// ── Reports Tab ───────────────────────────────────────────────────────────
+
 class _ReportsTab extends StatelessWidget {
   const _ReportsTab();
 
   @override
   Widget build(BuildContext context) {
     final reportService = ReportService();
+    final notifService = NotificationService();
 
     return StreamBuilder<List<Map<String, dynamic>>>(
       stream: reportService.getAllReports(),
@@ -534,8 +527,7 @@ class _ReportsTab extends StatelessWidget {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.flag_outlined,
-                    size: 64, color: Colors.grey.shade300),
+                Icon(Icons.flag_outlined, size: 64, color: Colors.grey.shade300),
                 const SizedBox(height: 12),
                 Text('Chưa có báo cáo nào',
                     style: TextStyle(color: Colors.grey.shade500)),
@@ -543,131 +535,354 @@ class _ReportsTab extends StatelessWidget {
             ),
           );
         }
-        return ListView.builder(
-          padding: const EdgeInsets.all(12),
-          itemCount: reports.length,
-          itemBuilder: (_, i) {
-            final r = reports[i];
-            final status = r['status'] ?? 'pending';
-            final isPending = status == 'pending';
-            final createdAt = (r['createdAt'] as dynamic)
-                    ?.toDate()
-                    .toString()
-                    .substring(0, 10) ??
-                '';
 
-            return Card(
-              margin: const EdgeInsets.only(bottom: 10),
-              child: Padding(
-                padding: const EdgeInsets.all(12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+        // Đếm số báo cáo chờ xử lý
+        final pendingCount =
+            reports.where((r) => r['status'] == 'pending').length;
+
+        return Column(
+          children: [
+            // Banner tổng số báo cáo chờ xử lý
+            if (pendingCount > 0)
+              Container(
+                width: double.infinity,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                color: Colors.orange.shade50,
+                child: Row(
                   children: [
-                    Row(
-                      children: [
-                        CircleAvatar(
-                          radius: 18,
-                          backgroundColor: isPending
-                              ? Colors.red.shade100
-                              : Colors.green.shade100,
-                          child: Icon(
-                            isPending ? Icons.flag : Icons.check,
-                            color:
-                                isPending ? Colors.red : Colors.green,
-                            size: 18,
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(r['jobTitle'] ?? '',
-                                  style: const TextStyle(
-                                      fontWeight: FontWeight.bold)),
-                              Text('Lý do: ${r['reason']}',
-                                  style: const TextStyle(fontSize: 13)),
-                              Text('Ngày báo cáo: $createdAt',
-                                  style: TextStyle(
-                                      fontSize: 12,
-                                      color: Colors.grey.shade500)),
-                            ],
-                          ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 8, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: isPending
-                                ? Colors.orange.shade50
-                                : Colors.green.shade50,
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(
-                              color: isPending
-                                  ? Colors.orange
-                                  : Colors.green,
-                            ),
-                          ),
-                          child: Text(
-                            isPending ? 'Chờ xử lý' : 'Đã xử lý',
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: isPending
-                                  ? Colors.orange
-                                  : Colors.green,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 10),
-                    Row(
-                      children: [
-                        if (isPending)
-                          Expanded(
-                            child: OutlinedButton.icon(
-                              icon: const Icon(Icons.check,
-                                  color: Colors.green, size: 16),
-                              label: const Text('Đã xử lý',
-                                  style:
-                                      TextStyle(color: Colors.green)),
-                              style: OutlinedButton.styleFrom(
-                                  side: const BorderSide(
-                                      color: Colors.green)),
-                              onPressed: () =>
-                                  reportService.resolveReport(r['id']),
-                            ),
-                          ),
-                        if (isPending) const SizedBox(width: 8),
-                        Expanded(
-                          child: OutlinedButton.icon(
-                            icon: const Icon(Icons.delete_outline,
-                                color: Colors.red, size: 16),
-                            label: const Text('Xóa',
-                                style: TextStyle(color: Colors.red)),
-                            style: OutlinedButton.styleFrom(
-                                side:
-                                    const BorderSide(color: Colors.red)),
-                            onPressed: () async {
-                              await reportService.deleteReport(r['id']);
-                              if (context.mounted) {
-                                ScaffoldMessenger.of(context)
-                                    .showSnackBar(
-                                  const SnackBar(
-                                      content: Text('Đã xóa báo cáo')),
-                                );
-                              }
-                            },
-                          ),
-                        ),
-                      ],
+                    const Icon(Icons.warning_amber_rounded,
+                        color: Colors.orange, size: 18),
+                    const SizedBox(width: 8),
+                    Text(
+                      '$pendingCount báo cáo đang chờ xử lý',
+                      style: const TextStyle(
+                          color: Colors.orange, fontWeight: FontWeight.w600),
                     ),
                   ],
                 ),
               ),
-            );
-          },
+
+            Expanded(
+              child: ListView.builder(
+                padding: const EdgeInsets.all(12),
+                itemCount: reports.length,
+                itemBuilder: (_, i) {
+                  final r = reports[i];
+                  final status = r['status'] ?? 'pending';
+                  final isPending = status == 'pending';
+                  final createdAt = (r['createdAt'] as dynamic)
+                          ?.toDate()
+                          .toString()
+                          .substring(0, 10) ??
+                      '';
+                  final reporterId = r['reporterId'] ?? '';
+                  final jobId = r['jobId'] ?? '';
+
+                  return Card(
+                    margin: const EdgeInsets.only(bottom: 10),
+                    child: Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Header: icon + thông tin báo cáo + badge trạng thái
+                          Row(
+                            children: [
+                              CircleAvatar(
+                                radius: 18,
+                                backgroundColor: isPending
+                                    ? Colors.red.shade100
+                                    : Colors.green.shade100,
+                                child: Icon(
+                                  isPending ? Icons.flag : Icons.check,
+                                  color: isPending ? Colors.red : Colors.green,
+                                  size: 18,
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(r['jobTitle'] ?? '',
+                                        style: const TextStyle(
+                                            fontWeight: FontWeight.bold)),
+                                    Text('Lý do: ${r['reason']}',
+                                        style:
+                                            const TextStyle(fontSize: 13)),
+                                    Text('Ngày báo cáo: $createdAt',
+                                        style: TextStyle(
+                                            fontSize: 12,
+                                            color: Colors.grey.shade500)),
+                                  ],
+                                ),
+                              ),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: isPending
+                                      ? Colors.orange.shade50
+                                      : Colors.green.shade50,
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                    color: isPending
+                                        ? Colors.orange
+                                        : Colors.green,
+                                  ),
+                                ),
+                                child: Text(
+                                  isPending ? 'Chờ xử lý' : 'Đã xử lý',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: isPending
+                                        ? Colors.orange
+                                        : Colors.green,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+
+                          const SizedBox(height: 8),
+
+                          // Thông tin người báo cáo (fetch realtime)
+                          if (reporterId.isNotEmpty)
+                            FutureBuilder<DocumentSnapshot>(
+                              future: FirebaseFirestore.instance
+                                  .collection('users')
+                                  .doc(reporterId)
+                                  .get(),
+                              builder: (context, userSnap) {
+                                final userData = userSnap.data?.data()
+                                    as Map<String, dynamic>?;
+                                final reporterName =
+                                    userData?['fullName'] ?? 'Đang tải...';
+                                final reporterEmail =
+                                    userData?['email'] ?? '';
+                                return Container(
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: BoxDecoration(
+                                    color: Colors.grey.shade50,
+                                    borderRadius: BorderRadius.circular(6),
+                                    border: Border.all(
+                                        color: Colors.grey.shade200),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Icon(Icons.person_outline,
+                                          size: 14,
+                                          color: Colors.grey.shade500),
+                                      const SizedBox(width: 6),
+                                      Expanded(
+                                        child: Text(
+                                          'Báo cáo bởi: $reporterName${reporterEmail.isNotEmpty ? ' ($reporterEmail)' : ''}',
+                                          style: TextStyle(
+                                              fontSize: 12,
+                                              color: Colors.grey.shade700),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              },
+                            ),
+
+                          const SizedBox(height: 10),
+
+                          // Action buttons
+                          if (isPending)
+                            Column(
+                              children: [
+                                // Hàng 1: Đánh dấu xử lý + Xóa tin & xử lý
+                                Row(
+                                  children: [
+                                    // Đánh dấu đã xử lý (không xóa tin)
+                                    Expanded(
+                                      child: OutlinedButton.icon(
+                                        icon: const Icon(Icons.check,
+                                            color: Colors.green, size: 16),
+                                        label: const Text('Đã xử lý',
+                                            style: TextStyle(
+                                                color: Colors.green)),
+                                        style: OutlinedButton.styleFrom(
+                                            side: const BorderSide(
+                                                color: Colors.green)),
+                                        onPressed: () async {
+                                          await reportService
+                                              .resolveReport(r['id']);
+                                          // Thông báo cho người báo cáo
+                                          if (reporterId.isNotEmpty) {
+                                            await notifService.sendNotification(
+                                              toUserId: reporterId,
+                                              title: 'Báo cáo đã được xử lý',
+                                              body:
+                                                  'Báo cáo của bạn về tin "${r['jobTitle']}" đã được admin xem xét và xử lý.',
+                                              type: 'general',
+                                            );
+                                          }
+                                          if (context.mounted) {
+                                            ScaffoldMessenger.of(context)
+                                                .showSnackBar(
+                                              const SnackBar(
+                                                  content: Text(
+                                                      'Đã đánh dấu xử lý')),
+                                            );
+                                          }
+                                        },
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+
+                                    // Xóa tin + đánh dấu xử lý
+                                    Expanded(
+                                      child: OutlinedButton.icon(
+                                        icon: const Icon(Icons.delete_forever,
+                                            color: Colors.red, size: 16),
+                                        label: const Text('Xóa tin',
+                                            style:
+                                                TextStyle(color: Colors.red)),
+                                        style: OutlinedButton.styleFrom(
+                                            side: const BorderSide(
+                                                color: Colors.red)),
+                                        onPressed: () async {
+                                          final confirm =
+                                              await showDialog<bool>(
+                                            context: context,
+                                            builder: (_) => AlertDialog(
+                                              title: const Text('Xác nhận xóa tin'),
+                                              content: Text(
+                                                  'Xóa tin "${r['jobTitle']}" và đánh dấu báo cáo đã xử lý?'),
+                                              actions: [
+                                                TextButton(
+                                                  onPressed: () =>
+                                                      Navigator.pop(
+                                                          context, false),
+                                                  child: const Text('Hủy'),
+                                                ),
+                                                TextButton(
+                                                  onPressed: () =>
+                                                      Navigator.pop(
+                                                          context, true),
+                                                  child: const Text('Xóa',
+                                                      style: TextStyle(
+                                                          color: Colors.red)),
+                                                ),
+                                              ],
+                                            ),
+                                          );
+                                          if (confirm != true) return;
+
+                                          // Xóa job
+                                          if (jobId.isNotEmpty) {
+                                            await FirebaseFirestore.instance
+                                                .collection('jobs')
+                                                .doc(jobId)
+                                                .delete();
+                                          }
+
+                                          // Đánh dấu báo cáo đã xử lý
+                                          await reportService
+                                              .resolveReport(r['id']);
+
+                                          // Thông báo người báo cáo
+                                          if (reporterId.isNotEmpty) {
+                                            await notifService.sendNotification(
+                                              toUserId: reporterId,
+                                              title: 'Báo cáo đã được xử lý',
+                                              body:
+                                                  'Tin tuyển dụng "${r['jobTitle']}" bạn báo cáo đã bị gỡ khỏi hệ thống.',
+                                              type: 'general',
+                                            );
+                                          }
+
+                                          // Lấy employerId để thông báo nhà tuyển dụng
+                                          if (jobId.isNotEmpty) {
+                                            final jobDoc =
+                                                await FirebaseFirestore.instance
+                                                    .collection('jobs')
+                                                    .doc(jobId)
+                                                    .get();
+                                            // job đã bị xóa nên jobDoc.exists = false
+                                            // employerId lấy từ report nếu có, hoặc bỏ qua
+                                          }
+
+                                          if (context.mounted) {
+                                            ScaffoldMessenger.of(context)
+                                                .showSnackBar(
+                                              const SnackBar(
+                                                content: Text(
+                                                    'Đã xóa tin và xử lý báo cáo'),
+                                                backgroundColor: Colors.green,
+                                              ),
+                                            );
+                                          }
+                                        },
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 8),
+
+                                // Hàng 2: Xóa báo cáo
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: OutlinedButton.icon(
+                                    icon: const Icon(Icons.delete_outline,
+                                        color: Colors.grey, size: 16),
+                                    label: const Text('Xóa báo cáo',
+                                        style: TextStyle(color: Colors.grey)),
+                                    style: OutlinedButton.styleFrom(
+                                        side: BorderSide(
+                                            color: Colors.grey.shade400)),
+                                    onPressed: () async {
+                                      await reportService
+                                          .deleteReport(r['id']);
+                                      if (context.mounted) {
+                                        ScaffoldMessenger.of(context)
+                                            .showSnackBar(
+                                          const SnackBar(
+                                              content: Text('Đã xóa báo cáo')),
+                                        );
+                                      }
+                                    },
+                                  ),
+                                ),
+                              ],
+                            )
+                          else
+                            // Báo cáo đã xử lý: chỉ có nút xóa báo cáo
+                            SizedBox(
+                              width: double.infinity,
+                              child: OutlinedButton.icon(
+                                icon: const Icon(Icons.delete_outline,
+                                    color: Colors.red, size: 16),
+                                label: const Text('Xóa báo cáo',
+                                    style: TextStyle(color: Colors.red)),
+                                style: OutlinedButton.styleFrom(
+                                    side:
+                                        const BorderSide(color: Colors.red)),
+                                onPressed: () async {
+                                  await reportService.deleteReport(r['id']);
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                          content: Text('Đã xóa báo cáo')),
+                                    );
+                                  }
+                                },
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
         );
       },
     );
