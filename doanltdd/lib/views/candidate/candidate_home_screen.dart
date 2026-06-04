@@ -13,6 +13,7 @@ import 'profile_screen.dart';
 import 'filter_sheet.dart';
 import '../chat/chat_list_screen.dart';
 import '../notifications/notifications_screen.dart';
+// import '../auth/login_screen.dart';
 
 class CandidateHomeScreen extends StatefulWidget {
   const CandidateHomeScreen({super.key});
@@ -23,6 +24,7 @@ class CandidateHomeScreen extends StatefulWidget {
 
 class _CandidateHomeScreenState extends State<CandidateHomeScreen> {
   final _searchCtrl = TextEditingController();
+  final _locationCtrl = TextEditingController();
   final _notifService = NotificationService();
   String _keyword = '';
   String _locationFilter = '';
@@ -41,6 +43,7 @@ class _CandidateHomeScreenState extends State<CandidateHomeScreen> {
   @override
   void dispose() {
     _searchCtrl.dispose();
+    _locationCtrl.dispose();
     super.dispose();
   }
 
@@ -78,12 +81,9 @@ class _CandidateHomeScreenState extends State<CandidateHomeScreen> {
         selectedIndex: _currentIndex,
         onDestinationSelected: (i) => setState(() => _currentIndex = i),
         destinations: const [
-          NavigationDestination(
-              icon: Icon(Icons.search), label: 'Tìm việc'),
-          NavigationDestination(
-              icon: Icon(Icons.assignment), label: 'Đơn của tôi'),
-          NavigationDestination(
-              icon: Icon(Icons.bookmark_border), label: 'Đã lưu'),
+          NavigationDestination(icon: Icon(Icons.search), label: 'Tìm việc'),
+          NavigationDestination(icon: Icon(Icons.assignment), label: 'Đơn của tôi'),
+          NavigationDestination(icon: Icon(Icons.bookmark_border), label: 'Đã lưu'),
           NavigationDestination(icon: Icon(Icons.chat), label: 'Tin nhắn'),
           NavigationDestination(icon: Icon(Icons.person), label: 'Hồ sơ'),
         ],
@@ -91,8 +91,7 @@ class _CandidateHomeScreenState extends State<CandidateHomeScreen> {
     );
   }
 
-  Widget _buildJobList(
-      AuthViewModel auth, JobViewModel jobVM, String uid) {
+  Widget _buildJobList(AuthViewModel auth, JobViewModel jobVM, String uid) {
     final hasFilter = !_activeFilter.isEmpty;
 
     return Scaffold(
@@ -103,17 +102,15 @@ class _CandidateHomeScreenState extends State<CandidateHomeScreen> {
             const Text('Tìm việc làm',
                 style: TextStyle(fontWeight: FontWeight.bold)),
             Text('Xin chào, ${auth.userModel?.fullName ?? ''}!',
-                style: const TextStyle(
-                    fontSize: 12, fontWeight: FontWeight.normal)),
+                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.normal)),
           ],
         ),
         actions: [
+          // Nút filter nâng cao
           Stack(
             children: [
               IconButton(
-                icon: Icon(hasFilter
-                    ? Icons.filter_alt
-                    : Icons.filter_alt_outlined),
+                icon: Icon(hasFilter ? Icons.filter_alt : Icons.filter_alt_outlined),
                 tooltip: 'Bộ lọc nâng cao',
                 onPressed: _openFilter,
               ),
@@ -132,6 +129,7 @@ class _CandidateHomeScreenState extends State<CandidateHomeScreen> {
                 ),
             ],
           ),
+          // Nút thông báo
           StreamBuilder<int>(
             stream: _notifService.getUnreadCount(uid),
             builder: (context, snap) {
@@ -142,8 +140,7 @@ class _CandidateHomeScreenState extends State<CandidateHomeScreen> {
                     icon: const Icon(Icons.notifications_outlined),
                     onPressed: () => Navigator.push(
                       context,
-                      MaterialPageRoute(
-                          builder: (_) => const NotificationsScreen()),
+                      MaterialPageRoute(builder: (_) => const NotificationsScreen()),
                     ),
                   ),
                   if (count > 0)
@@ -156,8 +153,7 @@ class _CandidateHomeScreenState extends State<CandidateHomeScreen> {
                           color: Colors.red,
                           shape: BoxShape.circle,
                         ),
-                        constraints: const BoxConstraints(
-                            minWidth: 16, minHeight: 16),
+                        constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
                         child: Text(
                           count > 9 ? '9+' : '$count',
                           style: const TextStyle(
@@ -172,6 +168,7 @@ class _CandidateHomeScreenState extends State<CandidateHomeScreen> {
               );
             },
           ),
+          // Nút đăng xuất
           IconButton(
             icon: const Icon(Icons.logout),
             onPressed: () async {
@@ -196,7 +193,12 @@ class _CandidateHomeScreenState extends State<CandidateHomeScreen> {
               if (confirm == true && context.mounted) {
                 final uid2 = auth.userModel?.uid;
                 if (uid2 != null) await FcmService().clearToken(uid2);
-                auth.logout();
+                await auth.logout();
+                if (confirm == true && context.mounted) {
+                  final uid2 = auth.userModel?.uid;   // lấy TRƯỚC await tiếp theo
+                  if (uid2 != null) await FcmService().clearToken(uid2);
+                  if (context.mounted) auth.logout(); // guard lại sau await
+                }
               }
             },
           ),
@@ -204,6 +206,7 @@ class _CandidateHomeScreenState extends State<CandidateHomeScreen> {
       ),
       body: Column(
         children: [
+          // Search bar
           Padding(
             padding: const EdgeInsets.fromLTRB(12, 12, 12, 4),
             child: TextField(
@@ -221,37 +224,39 @@ class _CandidateHomeScreenState extends State<CandidateHomeScreen> {
                       )
                     : null,
               ),
-              onChanged: (v) => setState(() => _keyword = v.toLowerCase()),
+              onChanged: (v) => setState(() => _keyword = v.trim().toLowerCase()),
             ),
           ),
+          // Location filter
           Padding(
             padding: const EdgeInsets.fromLTRB(12, 4, 12, 0),
             child: TextField(
+              controller: _locationCtrl,
               decoration: InputDecoration(
                 hintText: 'Lọc theo địa điểm (VD: Hồ Chí Minh)',
                 prefixIcon: const Icon(Icons.location_on, size: 20),
                 suffixIcon: _locationFilter.isNotEmpty
                     ? IconButton(
                         icon: const Icon(Icons.clear),
-                        onPressed: () =>
-                            setState(() => _locationFilter = ''),
+                        onPressed: () {
+                          _locationCtrl.clear();
+                          setState(() => _locationFilter = '');
+                        },
                       )
                     : null,
-                contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 12, vertical: 8),
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               ),
-              onChanged: (v) =>
-                  setState(() => _locationFilter = v.toLowerCase()),
+              onChanged: (v) => setState(() => _locationFilter = v.trim().toLowerCase()),
             ),
           ),
+          // Active filter chips
           if (hasFilter)
             Padding(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
               child: Row(
                 children: [
-                  const Icon(Icons.filter_alt,
-                      size: 16, color: Colors.orange),
+                  const Icon(Icons.filter_alt, size: 16, color: Colors.orange),
                   const SizedBox(width: 4),
                   Expanded(
                     child: Wrap(
@@ -259,32 +264,29 @@ class _CandidateHomeScreenState extends State<CandidateHomeScreen> {
                       children: [
                         if (_activeFilter.experience != null)
                           _filterChip(_activeFilter.experience!, () {
-                            setState(() => _activeFilter = JobFilter(
-                                contractType:
-                                    _activeFilter.contractType));
+                            setState(() => _activeFilter =
+                                JobFilter(contractType: _activeFilter.contractType));
                           }),
                         if (_activeFilter.contractType != null)
                           _filterChip(_activeFilter.contractType!, () {
-                            setState(() => _activeFilter = JobFilter(
-                                experience: _activeFilter.experience));
+                            setState(() => _activeFilter =
+                                JobFilter(experience: _activeFilter.experience));
                           }),
                       ],
                     ),
                   ),
                   TextButton(
-                    onPressed: () =>
-                        setState(() => _activeFilter = const JobFilter()),
+                    onPressed: () => setState(() => _activeFilter = const JobFilter()),
                     style: TextButton.styleFrom(
-                        padding: EdgeInsets.zero,
-                        minimumSize: Size.zero),
+                        padding: EdgeInsets.zero, minimumSize: Size.zero),
                     child: const Text('Xóa tất cả',
-                        style:
-                            TextStyle(color: Colors.red, fontSize: 12)),
+                        style: TextStyle(color: Colors.red, fontSize: 12)),
                   ),
                 ],
               ),
             ),
           const SizedBox(height: 4),
+          // Category chips
           SizedBox(
             height: 44,
             child: ListView.builder(
@@ -308,51 +310,50 @@ class _CandidateHomeScreenState extends State<CandidateHomeScreen> {
             ),
           ),
           const SizedBox(height: 4),
+          // Job list
           Expanded(
             child: StreamBuilder<List<JobModel>>(
               stream: jobVM.getJobs(),
               builder: (context, snap) {
                 if (snap.connectionState == ConnectionState.waiting) {
-                  return const Center(
-                      child: CircularProgressIndicator());
+                  return const Center(child: CircularProgressIndicator());
                 }
+
                 var jobs = snap.data ?? [];
 
-                // Filter keyword
+                // 1. Filter keyword — tìm trong title, company, description, category
                 if (_keyword.isNotEmpty) {
-                  jobs = jobs
-                      .where((j) =>
-                          j.title.toLowerCase().contains(_keyword) ||
-                          j.company.toLowerCase().contains(_keyword) ||
-                          j.location.toLowerCase().contains(_keyword))
-                      .toList();
+                  jobs = jobs.where((j) {
+                    return j.title.toLowerCase().contains(_keyword) ||
+                        j.company.toLowerCase().contains(_keyword) ||
+                        j.description.toLowerCase().contains(_keyword) ||
+                        j.category.toLowerCase().contains(_keyword);
+                  }).toList();
                 }
 
-                // Filter location
+                // 2. Filter location
                 if (_locationFilter.isNotEmpty) {
                   jobs = jobs
-                      .where((j) => j.location
-                          .toLowerCase()
-                          .contains(_locationFilter))
+                      .where((j) =>
+                          j.location.toLowerCase().contains(_locationFilter))
                       .toList();
                 }
 
-                // FIX #3: Filter nâng cao thực sự lọc theo
-                // experience và contractType từ JobModel
+                // 3. Filter nâng cao — job không có field sẽ bị loại
                 if (!_activeFilter.isEmpty) {
                   jobs = jobs.where((j) {
-                    // Filter experience
-                    if (_activeFilter.experience != null &&
-                        j.experience != null &&
-                        j.experience!.isNotEmpty) {
+                    if (_activeFilter.experience != null) {
+                      if (j.experience == null || j.experience!.isEmpty) {
+                        return false;
+                      }
                       if (j.experience != _activeFilter.experience) {
                         return false;
                       }
                     }
-                    // Filter contractType
-                    if (_activeFilter.contractType != null &&
-                        j.contractType != null &&
-                        j.contractType!.isNotEmpty) {
+                    if (_activeFilter.contractType != null) {
+                      if (j.contractType == null || j.contractType!.isEmpty) {
+                        return false;
+                      }
                       if (j.contractType != _activeFilter.contractType) {
                         return false;
                       }
@@ -370,16 +371,24 @@ class _CandidateHomeScreenState extends State<CandidateHomeScreen> {
                             size: 64, color: Colors.grey.shade400),
                         const SizedBox(height: 12),
                         Text(
-                          'Không tìm thấy việc làm phù hợp',
-                          style:
-                              TextStyle(color: Colors.grey.shade500),
+                          _keyword.isNotEmpty || _locationFilter.isNotEmpty || hasFilter
+                              ? 'Không tìm thấy việc làm phù hợp'
+                              : 'Chưa có tin tuyển dụng nào',
+                          style: TextStyle(color: Colors.grey.shade500),
                         ),
-                        if (hasFilter) ...[
+                        if (hasFilter || _keyword.isNotEmpty || _locationFilter.isNotEmpty) ...[
                           const SizedBox(height: 8),
                           TextButton(
-                            onPressed: () => setState(() =>
-                                _activeFilter = const JobFilter()),
-                            child: const Text('Xóa bộ lọc'),
+                            onPressed: () {
+                              _searchCtrl.clear();
+                              _locationCtrl.clear();
+                              setState(() {
+                                _keyword = '';
+                                _locationFilter = '';
+                                _activeFilter = const JobFilter();
+                              });
+                            },
+                            child: const Text('Xóa tất cả bộ lọc'),
                           ),
                         ],
                       ],
@@ -404,8 +413,7 @@ class _CandidateHomeScreenState extends State<CandidateHomeScreen> {
     return Chip(
       label: Text(label,
           style: const TextStyle(fontSize: 12, color: Colors.orange)),
-      deleteIcon:
-          const Icon(Icons.close, size: 14, color: Colors.orange),
+      deleteIcon: const Icon(Icons.close, size: 14, color: Colors.orange),
       onDeleted: onRemove,
       backgroundColor: Colors.orange.withValues(alpha: 0.1),
       side: const BorderSide(color: Colors.orange),
@@ -428,8 +436,7 @@ class _JobCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         onTap: () => Navigator.push(
             context,
-            MaterialPageRoute(
-                builder: (_) => JobDetailScreen(job: job))),
+            MaterialPageRoute(builder: (_) => JobDetailScreen(job: job))),
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Row(
@@ -439,9 +446,7 @@ class _JobCard extends StatelessWidget {
                 radius: 24,
                 backgroundColor: const Color(0xFF1E88E5),
                 child: Text(
-                  job.company.isNotEmpty
-                      ? job.company[0].toUpperCase()
-                      : 'J',
+                  job.company.isNotEmpty ? job.company[0].toUpperCase() : 'J',
                   style: const TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.bold,
@@ -458,24 +463,18 @@ class _JobCard extends StatelessWidget {
                             fontWeight: FontWeight.bold, fontSize: 15)),
                     const SizedBox(height: 2),
                     Text(job.company,
-                        style:
-                            TextStyle(color: Colors.grey.shade700)),
+                        style: TextStyle(color: Colors.grey.shade700)),
                     const SizedBox(height: 6),
                     Wrap(
                       spacing: 8,
                       runSpacing: 4,
                       children: [
-                        _tag(Icons.location_on, job.location,
-                            Colors.red),
-                        _tag(Icons.attach_money, job.salary,
-                            Colors.green),
-                        // Hiển thị thêm experience và contractType nếu có
-                        if (job.experience != null &&
-                            job.experience!.isNotEmpty)
+                        _tag(Icons.location_on, job.location, Colors.red),
+                        _tag(Icons.attach_money, job.salary, Colors.green),
+                        if (job.experience != null && job.experience!.isNotEmpty)
                           _tag(Icons.work_history_outlined,
                               job.experience!, Colors.purple),
-                        if (job.contractType != null &&
-                            job.contractType!.isNotEmpty)
+                        if (job.contractType != null && job.contractType!.isNotEmpty)
                           _tag(Icons.description_outlined,
                               job.contractType!, Colors.teal),
                       ],
@@ -484,8 +483,7 @@ class _JobCard extends StatelessWidget {
                 ),
               ),
               Chip(
-                label: Text(job.category,
-                    style: const TextStyle(fontSize: 11)),
+                label: Text(job.category, style: const TextStyle(fontSize: 11)),
                 backgroundColor: Colors.blue.shade50,
                 padding: EdgeInsets.zero,
               ),
@@ -502,9 +500,7 @@ class _JobCard extends StatelessWidget {
       children: [
         Icon(icon, size: 13, color: color),
         const SizedBox(width: 2),
-        Text(text,
-            style:
-                TextStyle(fontSize: 12, color: Colors.grey.shade700)),
+        Text(text, style: TextStyle(fontSize: 12, color: Colors.grey.shade700)),
       ],
     );
   }

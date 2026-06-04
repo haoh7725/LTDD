@@ -6,6 +6,7 @@ import '../../models/job_model.dart';
 import 'applicants_screen.dart';
 import 'edit_job_sheet.dart';
 import '../chat/chat_list_screen.dart';
+import '../auth/login_screen.dart';
 
 class EmployerHomeScreen extends StatelessWidget {
   const EmployerHomeScreen({super.key});
@@ -57,6 +58,12 @@ class EmployerHomeScreen extends StatelessWidget {
               );
               if (confirm == true && context.mounted) {
                 auth.logout();
+                if (context.mounted) {
+                  Navigator.of(context).pushAndRemoveUntil(
+                    MaterialPageRoute(builder: (_) => const LoginScreen()),
+                    (route) => false,
+                  );
+                }
               }
             },
           ),
@@ -330,7 +337,7 @@ class _PostJobSheetState extends State<_PostJobSheet> {
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
-                value: _category,
+                initialValue: _category,
                 decoration:
                     const InputDecoration(labelText: 'Ngành nghề'),
                 items: _categories
@@ -342,7 +349,7 @@ class _PostJobSheetState extends State<_PostJobSheet> {
               const SizedBox(height: 12),
               // FIX: Dropdown kinh nghiệm
               DropdownButtonFormField<String>(
-                value: _experience,
+                initialValue: _experience,
                 decoration: const InputDecoration(
                   labelText: 'Kinh nghiệm',
                   prefixIcon: Icon(Icons.work_history_outlined),
@@ -359,7 +366,7 @@ class _PostJobSheetState extends State<_PostJobSheet> {
               const SizedBox(height: 12),
               // FIX: Dropdown loại hợp đồng
               DropdownButtonFormField<String>(
-                value: _contractType,
+                initialValue: _contractType,
                 decoration: const InputDecoration(
                   labelText: 'Loại hợp đồng',
                   prefixIcon: Icon(Icons.description_outlined),

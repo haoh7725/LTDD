@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
-import '../models/job_model.dart';
-// FIX: Thêm `hide JobModel` để tránh conflict
-// job_service.dart import job_model.dart nên Dart thấy JobModel từ 2 nguồn
-import '../services/job_service.dart' hide JobModel;
+// FIX: Chỉ import job_service.dart — nó đã export job_model.dart
+// import cả 2 file trực tiếp gây lỗi "imported from both"
+import '../services/job_service.dart';
 
 class JobViewModel extends ChangeNotifier {
   final JobService _jobService = JobService();

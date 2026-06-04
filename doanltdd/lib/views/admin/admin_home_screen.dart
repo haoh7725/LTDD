@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../viewmodels/auth_viewmodel.dart';
+import '../auth/login_screen.dart';
 
 class AdminHomeScreen extends StatelessWidget {
   const AdminHomeScreen({super.key});
@@ -36,7 +37,13 @@ class AdminHomeScreen extends StatelessWidget {
                   ),
                 );
                 if (confirm == true && context.mounted) {
-                  context.read<AuthViewModel>().logout();
+                  await context.read<AuthViewModel>().logout();
+                  if (context.mounted) {
+                    Navigator.of(context).pushAndRemoveUntil(
+                      MaterialPageRoute(builder: (_) => const LoginScreen()),
+                      (route) => false,
+                    );
+                  }
                 }
               },
             ),

@@ -1,7 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/job_model.dart';
-// Export JobModel để các file import job_service.dart
-// không cần import job_model.dart riêng nữa
 export '../models/job_model.dart';
 
 class JobService {
@@ -9,43 +7,45 @@ class JobService {
 
   static const int pageSize = 10;
 
-  // ── Stream realtime (dùng cho tab chính) ──────────────────────────────────
+  // ── Stream realtime ───────────────────────────────────────────────────────
 
   Stream<List<JobModel>> getJobs({String? category}) {
-    Query query =
-        _db.collection('jobs').orderBy('createdAt', descending: true);
+    Query query = _db.collection('jobs');
+
     if (category != null && category.isNotEmpty) {
-      query = _db
-          .collection('jobs')
-          .where('category', isEqualTo: category)
-          .orderBy('createdAt', descending: true);
+      query = query.where('category', isEqualTo: category);
     }
-    return query.snapshots().map((snap) => snap.docs
-        .map((d) =>
-            JobModel.fromMap(d.data() as Map<String, dynamic>, d.id))
-        .toList());
+
+    return query.snapshots().map((snap) {
+      final jobs = snap.docs
+          .map((d) => JobModel.fromMap(d.data() as Map<String, dynamic>, d.id))
+          .toList();
+      jobs.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      return jobs;
+    });
   }
 
   Stream<List<JobModel>> getJobsByEmployer(String employerId) {
     return _db
         .collection('jobs')
         .where('employerId', isEqualTo: employerId)
-        .orderBy('createdAt', descending: true)
         .snapshots()
-        .map((snap) => snap.docs
-            .map((d) => JobModel.fromMap(d.data(), d.id))
-            .toList());
+        .map((snap) {
+      final jobs = snap.docs
+          .map((d) => JobModel.fromMap(d.data(), d.id))
+          .toList();
+      jobs.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      return jobs;
+    });
   }
 
-  // ── Pagination (Future-based, dùng cho load more) ─────────────────────────
+  // ── Pagination ────────────────────────────────────────────────────────────
 
   Future<({List<JobModel> jobs, DocumentSnapshot? lastDoc, bool hasMore})>
       getJobsPaginated({
     String? category,
     DocumentSnapshot? lastDoc,
   }) async {
-    // FIX #2: Build query trước, rồi mới append startAfterDocument
-    // tránh lastDoc bị bỏ qua khi có category filter
     Query query = _db.collection('jobs').orderBy('createdAt', descending: true);
 
     if (category != null && category.isNotEmpty) {
@@ -55,7 +55,6 @@ class JobService {
           .orderBy('createdAt', descending: true);
     }
 
-    // Append pagination SAU khi đã build filter
     if (lastDoc != null) {
       query = query.startAfterDocument(lastDoc);
     }
@@ -64,8 +63,7 @@ class JobService {
 
     final snap = await query.get();
     final jobs = snap.docs
-        .map((d) =>
-            JobModel.fromMap(d.data() as Map<String, dynamic>, d.id))
+        .map((d) => JobModel.fromMap(d.data() as Map<String, dynamic>, d.id))
         .toList();
 
     return (

@@ -49,9 +49,7 @@ class _SplashScreenState extends State<SplashScreen>
     _goToNextScreen(auth);
   }
 
-  /// Chờ AuthViewModel hoàn tất load, timeout sau 5 giây
   Future<void> _waitForAuth(AuthViewModel auth) {
-    final completer = Future<void>(() {});
     return Future.any([
       Future.delayed(const Duration(seconds: 5)),
       Stream.periodic(const Duration(milliseconds: 100))

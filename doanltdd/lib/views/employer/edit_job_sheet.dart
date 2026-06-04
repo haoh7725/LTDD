@@ -155,7 +155,7 @@ class _EditJobSheetState extends State<EditJobSheet> {
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
-                value: _category,
+                initialValue: _category,
                 decoration: const InputDecoration(
                   labelText: 'Ngành nghề',
                   prefixIcon: Icon(Icons.category_outlined),
@@ -169,7 +169,7 @@ class _EditJobSheetState extends State<EditJobSheet> {
               const SizedBox(height: 12),
               // FIX: Thêm dropdown Experience
               DropdownButtonFormField<String>(
-                value: _experience,
+                initialValue: _experience,
                 decoration: const InputDecoration(
                   labelText: 'Kinh nghiệm',
                   prefixIcon: Icon(Icons.work_history_outlined),
@@ -186,7 +186,7 @@ class _EditJobSheetState extends State<EditJobSheet> {
               const SizedBox(height: 12),
               // FIX: Thêm dropdown ContractType
               DropdownButtonFormField<String>(
-                value: _contractType,
+                initialValue: _contractType,
                 decoration: const InputDecoration(
                   labelText: 'Loại hợp đồng',
                   prefixIcon: Icon(Icons.description_outlined),

@@ -1,69 +1,71 @@
+import 'dart:convert';
 import 'dart:typed_data';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
-
-// FIX #4: Chỉ import dart:io khi không phải Web
-// dart:io File không tồn tại trên Flutter Web
-import 'dart:io' if (dart.library.html) 'dart:html' as io;
+import 'package:http/http.dart' as http;
 
 class CvService {
-  final FirebaseStorage _storage = FirebaseStorage.instance;
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
-  /// Upload CV - hỗ trợ cả Mobile (File) và Web (Uint8List)
+  static const _cloudName = 'dfa3ihj5u';
+  static const _uploadPreset = 'cv_unsigned'; // unsigned preset
+
+  /// Upload CV bytes lên Cloudinary dùng unsigned preset
+  /// URL trả về là public — không cần auth khi xem/download
   Future<String?> uploadCvBytes(
       String uid, Uint8List bytes, String fileName) async {
-    final ref = _storage.ref().child('cvs/$uid/$fileName');
-    final metadata = SettableMetadata(
-      contentType: fileName.endsWith('.pdf') ? 'application/pdf' : 'application/octet-stream',
-    );
-    final task = await ref.putData(bytes, metadata);
-    final url = await task.ref.getDownloadURL();
-    await _db.collection('users').doc(uid).update({
-      'cvUrl': url,
-      'cvName': fileName,
-      'cvUploadedAt': FieldValue.serverTimestamp(),
-    });
-    return url;
-  }
+    final uri = Uri.parse(
+        'https://api.cloudinary.com/v1_1/$_cloudName/raw/upload');
 
-  /// Upload CV từ File path (chỉ dùng trên Mobile/Desktop)
-  Future<String?> uploadCv(String uid, dynamic file, String fileName) async {
-    if (kIsWeb) {
-      throw UnsupportedError(
-          'Dùng uploadCvBytes() trên Web. Truyền Uint8List thay vì File.');
+    final request = http.MultipartRequest('POST', uri)
+      ..fields['upload_preset'] = _uploadPreset
+      ..fields['folder'] = 'cvs/$uid'
+      ..files.add(http.MultipartFile.fromBytes(
+        'file',
+        bytes,
+        filename: fileName,
+      ));
+
+    final response = await request.send();
+    final body = await response.stream.bytesToString();
+    final json = jsonDecode(body) as Map<String, dynamic>;
+
+    if (response.statusCode != 200) {
+      throw Exception(
+          'Cloudinary upload failed: ${json['error']?['message'] ?? body}');
     }
-    // Chỉ compile path này khi không phải Web
-    final ref = _storage.ref().child('cvs/$uid/$fileName');
-    final task = await ref.putFile(file as io.File);
-    final url = await task.ref.getDownloadURL();
+
+    final url = json['secure_url'] as String;
+    final publicId = json['public_id'] as String;
+
     await _db.collection('users').doc(uid).update({
       'cvUrl': url,
       'cvName': fileName,
+      'cvPath': publicId,
       'cvUploadedAt': FieldValue.serverTimestamp(),
     });
+
     return url;
   }
 
-  /// Lấy thông tin CV hiện tại của user
+  /// Xóa CV khỏi Firestore (không xóa trên Cloudinary vì unsigned)
+  Future<void> deleteCv(String uid, String cvPath) async {
+    try {
+      await _db.collection('users').doc(uid).update({
+        'cvUrl': FieldValue.delete(),
+        'cvName': FieldValue.delete(),
+        'cvPath': FieldValue.delete(),
+        'cvUploadedAt': FieldValue.delete(),
+      });
+    } catch (_) {}
+  }
+
+  /// Lấy thông tin CV hiện tại
   Future<Map<String, String?>> getCvInfo(String uid) async {
     final doc = await _db.collection('users').doc(uid).get();
     return {
       'cvUrl': doc.data()?['cvUrl'],
       'cvName': doc.data()?['cvName'],
+      'cvPath': doc.data()?['cvPath'],
     };
-  }
-
-  /// Xóa CV khỏi Storage và Firestore
-  Future<void> deleteCv(String uid, String fileName) async {
-    try {
-      await _storage.ref().child('cvs/$uid/$fileName').delete();
-    } catch (_) {}
-    await _db.collection('users').doc(uid).update({
-      'cvUrl': FieldValue.delete(),
-      'cvName': FieldValue.delete(),
-      'cvUploadedAt': FieldValue.delete(),
-    });
   }
 }

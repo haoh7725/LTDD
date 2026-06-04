@@ -10,22 +10,27 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-
+  http: ^1.2.0
+  crypto: ^3.0.3
   cupertino_icons: ^1.0.8
+  flutter_pdfview: ^1.3.2
+  path_provider: ^2.1.2
+  dio: ^5.4.0
 
-  # Firebase
-  firebase_core: ^3.0.0
-  firebase_auth: ^5.0.0
-  cloud_firestore: ^5.0.0
-  firebase_storage: ^12.0.0
-  firebase_messaging: ^15.0.0
+  # FIX #9: Pin Firebase versions với range cụ thể
+  # tránh auto-upgrade lên major version mới gây breaking changes
+  firebase_core: '>=3.0.0 <4.0.0'
+  firebase_auth: '>=5.0.0 <6.0.0'
+  cloud_firestore: '>=5.0.0 <6.0.0'
+  firebase_storage: '>=12.0.0 <13.0.0'
+  firebase_messaging: '>=15.0.0 <16.0.0'
 
   # State management
   provider: ^6.1.0
 
   # File & media
   image_picker: ^1.0.0
-  file_picker: ^8.0.0          # MỚI: upload CV (PDF/Word)
+  file_picker: ^8.0.0
 
   # Network & cache
   cached_network_image: ^3.3.0
@@ -33,8 +38,8 @@ dependencies:
   # Storage
   shared_preferences: ^2.2.0
 
-  # URL launcher (mở CV trong browser)
-  url_launcher: ^6.2.0         # MỚI: xem CV online
+  # URL launcher
+  url_launcher: ^6.2.0
 
 dev_dependencies:
   flutter_test:

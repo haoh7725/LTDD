@@ -4,9 +4,9 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../../viewmodels/auth_viewmodel.dart';
 import '../../services/cv_service.dart';
+import 'cv_viewer_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -30,6 +30,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   String? _cvUrl;
   String? _cvName;
+  String? _cvPath;
 
   @override
   void initState() {
@@ -38,8 +39,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _loadProfile() async {
-    final auth = context.read<AuthViewModel>();
-    final uid = auth.userModel?.uid;
+    final uid = context.read<AuthViewModel>().userModel?.uid;
     if (uid == null) return;
     final doc = await FirebaseFirestore.instance
         .collection('users')
@@ -54,6 +54,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       _expCtrl.text = data['experience'] ?? '';
       _cvUrl = data['cvUrl'];
       _cvName = data['cvName'];
+      _cvPath = data['cvPath'];
     }
     if (mounted) setState(() {});
   }
@@ -61,7 +62,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _loading = true);
-    // FIX: Lấy uid TRƯỚC await để không dùng context sau async gap
     final uid = context.read<AuthViewModel>().userModel?.uid;
     await FirebaseFirestore.instance.collection('users').doc(uid).update({
       'fullName': _nameCtrl.text.trim(),
@@ -84,32 +84,36 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
       allowedExtensions: ['pdf', 'doc', 'docx'],
-      // Trên Web cần withData: true để lấy bytes
-      withData: kIsWeb,
+      withData: true, // luôn lấy bytes, dùng được cả Web lẫn Mobile
     );
     if (result == null || result.files.isEmpty) return;
 
-    final fileName = result.files.single.name;
-    // FIX: Lấy uid TRƯỚC await để không dùng context sau async gap
-    final uid = context.read<AuthViewModel>().userModel!.uid;
+    final file = result.files.single;
+    final fileName = file.name;
+    final bytes = file.bytes;
 
+    if (bytes == null) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Không đọc được file, thử lại')),
+      );
+      return;
+    }
+
+    if (!mounted) return;
+    final uid = context.read<AuthViewModel>().userModel!.uid;
     setState(() => _cvLoading = true);
 
     try {
-      String? url;
-      if (kIsWeb) {
-        // Web: dùng bytes
-        final bytes = result.files.single.bytes!;
-        url = await _cvService.uploadCvBytes(uid, bytes, fileName);
-      } else {
-        // Mobile/Desktop: dùng File
-        final filePath = result.files.single.path!;
-        url = await _cvService.uploadCv(uid, File(filePath), fileName);
-      }
+      final url = await _cvService.uploadCvBytes(uid, bytes, fileName);
+      if (!mounted) return;
+      // Reload cvPath từ Firestore sau upload
+      final info = await _cvService.getCvInfo(uid);
       if (!mounted) return;
       setState(() {
         _cvUrl = url;
         _cvName = fileName;
+        _cvPath = info['cvPath'];
         _cvLoading = false;
       });
       ScaffoldMessenger.of(context).showSnackBar(
@@ -131,7 +135,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _deleteCv() async {
-    if (_cvName == null) return;
+    if (_cvPath == null) return;
     final confirm = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
@@ -150,18 +154,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ),
     );
     if (confirm != true) return;
+    if (!mounted) return;
 
-    // FIX: Lấy uid TRƯỚC await
     final uid = context.read<AuthViewModel>().userModel!.uid;
-    final cvName = _cvName!;
+    final cvPath = _cvPath!;
     setState(() => _cvLoading = true);
 
-    await _cvService.deleteCv(uid, cvName);
+    await _cvService.deleteCv(uid, cvPath);
 
     if (!mounted) return;
     setState(() {
       _cvUrl = null;
       _cvName = null;
+      _cvPath = null;
       _cvLoading = false;
     });
     ScaffoldMessenger.of(context).showSnackBar(
@@ -169,12 +174,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Future<void> _openCv() async {
-    if (_cvUrl == null) return;
-    final uri = Uri.parse(_cvUrl!);
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-    }
+  void _openCv() {
+    if (_cvUrl == null || _cvName == null) return;
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => CvViewerScreen(
+          cvUrl: _cvUrl!,
+          cvName: _cvName!,
+        ),
+      ),
+    );
   }
 
   @override
@@ -342,7 +352,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  const Text('Đã tải lên',
+                  const Text('Đã tải lên (Cloudinary)',
                       style:
                           TextStyle(color: Colors.green, fontSize: 12)),
                 ],
