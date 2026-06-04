@@ -1,6 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:dio/dio.dart';
+import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 import 'package:flutter_pdfview/flutter_pdfview.dart';
 
@@ -38,8 +38,14 @@ class _CvViewerScreenState extends State<CvViewerScreen> {
       final file = File(filePath);
 
       if (!file.existsSync()) {
-        // URL public — không cần auth
-        await Dio().download(widget.cvUrl, filePath);
+        debugPrint('>>> CV URL: ${widget.cvUrl}');
+        final response = await http.get(Uri.parse(widget.cvUrl));
+        debugPrint('>>> HTTP STATUS: ${response.statusCode}');
+        if (response.statusCode != 200) {
+          debugPrint('>>> RESPONSE BODY: ${response.body}');
+          throw Exception('Lỗi ${response.statusCode} khi tải CV');
+        }
+        await file.writeAsBytes(response.bodyBytes);
       }
 
       if (!mounted) return;
@@ -48,6 +54,13 @@ class _CvViewerScreenState extends State<CvViewerScreen> {
         _loading = false;
       });
     } catch (e) {
+      // Xóa file lỗi để lần sau thử lại được
+      try {
+        final dir = await getTemporaryDirectory();
+        final badFile = File('${dir.path}/${widget.cvName}');
+        if (badFile.existsSync()) badFile.deleteSync();
+      } catch (_) {}
+
       if (!mounted) return;
       setState(() {
         _error = 'Không tải được CV: ${e.toString()}';
@@ -101,9 +114,11 @@ class _CvViewerScreenState extends State<CvViewerScreen> {
             const SizedBox(height: 12),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: Text(_error!,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: Colors.grey.shade600)),
+              child: Text(
+                _error!,
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.grey.shade600),
+              ),
             ),
             const SizedBox(height: 16),
             ElevatedButton.icon(

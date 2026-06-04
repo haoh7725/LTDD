@@ -13,7 +13,7 @@ import 'profile_screen.dart';
 import 'filter_sheet.dart';
 import '../chat/chat_list_screen.dart';
 import '../notifications/notifications_screen.dart';
-// import '../auth/login_screen.dart';
+import '../auth/login_screen.dart';
 
 class CandidateHomeScreen extends StatefulWidget {
   const CandidateHomeScreen({super.key});
@@ -191,13 +191,14 @@ class _CandidateHomeScreenState extends State<CandidateHomeScreen> {
                 ),
               );
               if (confirm == true && context.mounted) {
-                final uid2 = auth.userModel?.uid;
-                if (uid2 != null) await FcmService().clearToken(uid2);
+                final uid = auth.userModel?.uid;
+                if (uid != null) await FcmService().clearToken(uid);
                 await auth.logout();
-                if (confirm == true && context.mounted) {
-                  final uid2 = auth.userModel?.uid;   // lấy TRƯỚC await tiếp theo
-                  if (uid2 != null) await FcmService().clearToken(uid2);
-                  if (context.mounted) auth.logout(); // guard lại sau await
+                if (context.mounted) {
+                  Navigator.of(context).pushAndRemoveUntil(
+                    MaterialPageRoute(builder: (_) => const LoginScreen()),
+                    (route) => false,
+                  );
                 }
               }
             },
@@ -427,6 +428,15 @@ class _JobCard extends StatelessWidget {
   final JobModel job;
   const _JobCard({required this.job});
 
+  String _timeAgo(DateTime date) {
+    final diff = DateTime.now().difference(date);
+    if (diff.inMinutes < 60) return '${diff.inMinutes} phút trước';
+    if (diff.inHours < 24) return '${diff.inHours} giờ trước';
+    if (diff.inDays < 7) return '${diff.inDays} ngày trước';
+    if (diff.inDays < 30) return '${(diff.inDays / 7).floor()} tuần trước';
+    if (diff.inDays < 365) return '${(diff.inDays / 30).floor()} tháng trước';
+    return '${(diff.inDays / 365).floor()} năm trước';
+  }
   @override
   Widget build(BuildContext context) {
     return Card(
@@ -477,6 +487,7 @@ class _JobCard extends StatelessWidget {
                         if (job.contractType != null && job.contractType!.isNotEmpty)
                           _tag(Icons.description_outlined,
                               job.contractType!, Colors.teal),
+                        _tag(Icons.access_time, _timeAgo(job.createdAt), Colors.grey),
                       ],
                     ),
                   ],

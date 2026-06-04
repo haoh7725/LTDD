@@ -4,11 +4,92 @@ import '../../models/job_model.dart';
 import '../../viewmodels/auth_viewmodel.dart';
 import '../../viewmodels/job_viewmodel.dart';
 import '../../services/bookmark_service.dart';
+import '../../services/report_service.dart';
 import '../chat/chat_screen.dart';
 
 class JobDetailScreen extends StatelessWidget {
   final JobModel job;
   const JobDetailScreen({super.key, required this.job});
+
+  void _showReportDialog(BuildContext context, String uid) {
+    String? selectedReason;
+    final reasons = [
+      'Tin tuyển dụng giả mạo',
+      'Nội dung không phù hợp',
+      'Lừa đảo / Scam',
+      'Thông tin sai lệch',
+      'Khác',
+    ];
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: const Text('Báo cáo tin tuyển dụng'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Lý do báo cáo tin "${job.title}":',
+                  style: const TextStyle(fontSize: 13)),
+              const SizedBox(height: 12),
+              ...reasons.map((r) => RadioListTile<String>(
+                    title: Text(r, style: const TextStyle(fontSize: 14)),
+                    value: r,
+                    groupValue: selectedReason,
+                    onChanged: (v) =>
+                        setDialogState(() => selectedReason = v),
+                    contentPadding: EdgeInsets.zero,
+                    dense: true,
+                  )),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Hủy'),
+            ),
+            ElevatedButton(
+              onPressed: selectedReason == null
+                  ? null
+                  : () async {
+                      Navigator.pop(ctx);
+                      try {
+                        await ReportService().reportJob(
+                          jobId: job.id,
+                          jobTitle: job.title,
+                          reporterId: uid,
+                          reason: selectedReason!,
+                        );
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                  'Đã gửi báo cáo, cảm ơn bạn!'),
+                              backgroundColor: Colors.green,
+                            ),
+                          );
+                        }
+                      } catch (e) {
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(e
+                                  .toString()
+                                  .replaceAll('Exception: ', '')),
+                              backgroundColor: Colors.orange,
+                            ),
+                          );
+                        }
+                      }
+                    },
+              child: const Text('Gửi báo cáo'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -48,6 +129,12 @@ class JobDetailScreen extends StatelessWidget {
                 },
               );
             },
+          ),
+          // Nút báo cáo
+          IconButton(
+            icon: const Icon(Icons.flag_outlined, color: Colors.white),
+            tooltip: 'Báo cáo tin này',
+            onPressed: () => _showReportDialog(context, uid),
           ),
         ],
       ),
@@ -100,8 +187,14 @@ class JobDetailScreen extends StatelessWidget {
                   Colors.red),
               _infoRow(Icons.attach_money, 'Mức lương', job.salary,
                   Colors.green),
-              _infoRow(
-                  Icons.category, 'Ngành nghề', job.category, Colors.blue),
+              _infoRow(Icons.category, 'Ngành nghề', job.category,
+                  Colors.blue),
+              if (job.experience != null && job.experience!.isNotEmpty)
+                _infoRow(Icons.work_history_outlined, 'Kinh nghiệm',
+                    job.experience!, Colors.purple),
+              if (job.contractType != null && job.contractType!.isNotEmpty)
+                _infoRow(Icons.description_outlined, 'Loại hợp đồng',
+                    job.contractType!, Colors.teal),
             ]),
             const SizedBox(height: 16),
             const Text('Mô tả công việc',

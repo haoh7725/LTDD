@@ -7,10 +7,8 @@ class CvService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
   static const _cloudName = 'dfa3ihj5u';
-  static const _uploadPreset = 'cv_unsigned'; // unsigned preset
+  static const _uploadPreset = 'cv_unsigned';
 
-  /// Upload CV bytes lên Cloudinary dùng unsigned preset
-  /// URL trả về là public — không cần auth khi xem/download
   Future<String?> uploadCvBytes(
       String uid, Uint8List bytes, String fileName) async {
     final uri = Uri.parse(
@@ -19,6 +17,7 @@ class CvService {
     final request = http.MultipartRequest('POST', uri)
       ..fields['upload_preset'] = _uploadPreset
       ..fields['folder'] = 'cvs/$uid'
+      // KHÔNG thêm access_mode hay resource_type — unsigned preset không cho phép
       ..files.add(http.MultipartFile.fromBytes(
         'file',
         bytes,
@@ -27,13 +26,14 @@ class CvService {
 
     final response = await request.send();
     final body = await response.stream.bytesToString();
-    final json = jsonDecode(body) as Map<String, dynamic>;
 
     if (response.statusCode != 200) {
+      final json = jsonDecode(body) as Map<String, dynamic>;
       throw Exception(
           'Cloudinary upload failed: ${json['error']?['message'] ?? body}');
     }
 
+    final json = jsonDecode(body) as Map<String, dynamic>;
     final url = json['secure_url'] as String;
     final publicId = json['public_id'] as String;
 
@@ -47,7 +47,6 @@ class CvService {
     return url;
   }
 
-  /// Xóa CV khỏi Firestore (không xóa trên Cloudinary vì unsigned)
   Future<void> deleteCv(String uid, String cvPath) async {
     try {
       await _db.collection('users').doc(uid).update({
@@ -59,7 +58,6 @@ class CvService {
     } catch (_) {}
   }
 
-  /// Lấy thông tin CV hiện tại
   Future<Map<String, String?>> getCvInfo(String uid) async {
     final doc = await _db.collection('users').doc(uid).get();
     return {
