@@ -17,8 +17,7 @@ dependencies:
   path_provider: ^2.1.2
   dio: ^5.4.0
 
-  # FIX #9: Pin Firebase versions với range cụ thể
-  # tránh auto-upgrade lên major version mới gây breaking changes
+  # Firebase dependencies
   firebase_core: '>=3.0.0 <4.0.0'
   firebase_auth: '>=5.0.0 <6.0.0'
   cloud_firestore: '>=5.0.0 <6.0.0'
@@ -41,6 +40,8 @@ dependencies:
   # URL launcher
   url_launcher: ^6.2.0
 
+  # Google login 
+  google_sign_in: ^6.2.1
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -48,3 +49,5 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/images/

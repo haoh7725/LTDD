@@ -56,7 +56,11 @@ class AuthViewModel extends ChangeNotifier {
   }
 
   Future<bool> register(
-      String email, String password, String fullName, String role) async {
+    String email,
+    String password,
+    String fullName,
+    String role,
+  ) async {
     try {
       errorMessage = null;
       isLoading = true;
@@ -83,6 +87,32 @@ class AuthViewModel extends ChangeNotifier {
     userModel = null;
     user = null;
     notifyListeners();
+  }
+
+  Future<bool> loginWithGoogle() async {
+    try {
+      errorMessage = null;
+      isLoading = true;
+      notifyListeners();
+
+      userModel = await _authService.signInWithGoogle();
+
+      if (userModel == null) {
+        errorMessage = 'Đăng nhập đã bị hủy';
+        return false;
+      }
+
+      user = _authService.currentUser;
+
+      return true;
+    } catch (e) {
+      errorMessage = e.toString().replaceAll('Exception: ', '');
+
+      return false;
+    } finally {
+      isLoading = false;
+      notifyListeners();
+    }
   }
 
   String _mapError(String code) {

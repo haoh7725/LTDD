@@ -26,6 +26,25 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
+  void _navigateByRole(AuthViewModel auth) {
+    Widget next;
+
+    switch (auth.role) {
+      case 'employer':
+        next = const EmployerHomeScreen();
+        break;
+      case 'admin':
+        next = const AdminHomeScreen();
+        break;
+      default:
+        next = const CandidateHomeScreen();
+    }
+
+    Navigator.of(
+      context,
+    ).pushReplacement(MaterialPageRoute(builder: (_) => next));
+  }
+
   Future<void> _login() async {
     if (!_formKey.currentState!.validate()) return;
     final auth = context.read<AuthViewModel>();
@@ -44,12 +63,30 @@ class _LoginScreenState extends State<LoginScreen> {
         default:
           next = const CandidateHomeScreen();
       }
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => next),
-      );
+      Navigator.of(
+        context,
+      ).pushReplacement(MaterialPageRoute(builder: (_) => next));
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(auth.errorMessage ?? 'Lỗi đăng nhập')),
+      );
+    }
+  }
+
+  Future<void> _loginWithGoogle() async {
+    final auth = context.read<AuthViewModel>();
+
+    final ok = await auth.loginWithGoogle();
+
+    if (!mounted) return;
+
+    if (ok) {
+      _navigateByRole(auth);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(auth.errorMessage ?? 'Đăng nhập Google thất bại'),
+        ),
       );
     }
   }
@@ -67,23 +104,35 @@ class _LoginScreenState extends State<LoginScreen> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 const SizedBox(height: 60),
-                const Icon(Icons.work_rounded, size: 72, color: Color(0xFF1E88E5)),
+                const Icon(
+                  Icons.work_rounded,
+                  size: 72,
+                  color: Color(0xFF1E88E5),
+                ),
                 const SizedBox(height: 8),
-                const Text('Tìm Việc Làm',
-                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+                const Text(
+                  'Tìm Việc Làm',
+                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                ),
                 const SizedBox(height: 8),
-                Text('Kết nối ứng viên và nhà tuyển dụng',
-                    style: TextStyle(color: Colors.grey.shade600)),
+                Text(
+                  'Kết nối ứng viên và nhà tuyển dụng',
+                  style: TextStyle(color: Colors.grey.shade600),
+                ),
                 const SizedBox(height: 40),
                 TextFormField(
                   controller: _emailCtrl,
                   decoration: const InputDecoration(
-                      labelText: 'Email', prefixIcon: Icon(Icons.email)),
+                    labelText: 'Email',
+                    prefixIcon: Icon(Icons.email),
+                  ),
                   keyboardType: TextInputType.emailAddress,
                   validator: (v) {
-                    if (v == null || v.trim().isEmpty) return 'Vui lòng nhập email';
+                    if (v == null || v.trim().isEmpty)
+                      return 'Vui lòng nhập email';
                     final emailRegex = RegExp(r'^[^@]+@[^@]+\.[^@]+');
-                    if (!emailRegex.hasMatch(v.trim())) return 'Email không hợp lệ';
+                    if (!emailRegex.hasMatch(v.trim()))
+                      return 'Email không hợp lệ';
                     return null;
                   },
                 ),
@@ -95,7 +144,9 @@ class _LoginScreenState extends State<LoginScreen> {
                     labelText: 'Mật khẩu',
                     prefixIcon: const Icon(Icons.lock),
                     suffixIcon: IconButton(
-                      icon: Icon(_obscure ? Icons.visibility : Icons.visibility_off),
+                      icon: Icon(
+                        _obscure ? Icons.visibility : Icons.visibility_off,
+                      ),
                       onPressed: () => setState(() => _obscure = !_obscure),
                     ),
                   ),
@@ -108,12 +159,37 @@ class _LoginScreenState extends State<LoginScreen> {
                 const SizedBox(height: 24),
                 auth.isLoading
                     ? const CircularProgressIndicator()
-                    : ElevatedButton(
-                        onPressed: _login, child: const Text('Đăng nhập')),
+                    : Column(
+                        children: [
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton(
+                              onPressed: _login,
+                              child: const Text('Đăng nhập'),
+                            ),
+                          ),
+
+                          const SizedBox(height: 12),
+
+                          SizedBox(
+                            width: double.infinity,
+                            child: OutlinedButton.icon(
+                              onPressed: _loginWithGoogle,
+                              icon: Image.asset(
+                                'assets/images/google_logo.png',
+                                height: 20,
+                              ),
+                              label: const Text('Đăng nhập bằng Google'),
+                            ),
+                          ),
+                        ],
+                      ),
                 const SizedBox(height: 12),
                 TextButton(
-                  onPressed: () => Navigator.push(context,
-                      MaterialPageRoute(builder: (_) => const RegisterScreen())),
+                  onPressed: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const RegisterScreen()),
+                  ),
                   child: const Text('Chưa có tài khoản? Đăng ký ngay'),
                 ),
               ],
