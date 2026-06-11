@@ -48,8 +48,10 @@ class _ChatScreenState extends State<ChatScreen> {
   Future<void> _send() async {
     if (_msgCtrl.text.trim().isEmpty) return;
     final auth = context.read<AuthViewModel>();
-    final chatId =
-        _chatService.getChatId(auth.userModel!.uid, widget.otherUserId);
+    final chatId = _chatService.getChatId(
+      auth.userModel!.uid,
+      widget.otherUserId,
+    );
     await _chatService.sendMessage(
       chatId: chatId,
       senderId: auth.userModel!.uid,
@@ -63,8 +65,10 @@ class _ChatScreenState extends State<ChatScreen> {
   @override
   Widget build(BuildContext context) {
     final auth = context.read<AuthViewModel>();
-    final chatId =
-        _chatService.getChatId(auth.userModel!.uid, widget.otherUserId);
+    final chatId = _chatService.getChatId(
+      auth.userModel!.uid,
+      widget.otherUserId,
+    );
 
     return Scaffold(
       appBar: AppBar(title: Text(widget.otherUserName)),
@@ -100,7 +104,9 @@ class _ChatScreenState extends State<ChatScreen> {
                       child: Container(
                         margin: const EdgeInsets.only(bottom: 8),
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 14, vertical: 10),
+                          horizontal: 14,
+                          vertical: 10,
+                        ),
                         decoration: BoxDecoration(
                           color: isMe
                               ? const Color(0xFF1E88E5)
@@ -116,14 +122,18 @@ class _ChatScreenState extends State<ChatScreen> {
                               : CrossAxisAlignment.start,
                           children: [
                             if (!isMe)
-                              Text(msg.senderName,
-                                  style: const TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.bold)),
+                              Text(
+                                msg.senderName,
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
                             Text(
                               msg.content,
                               style: TextStyle(
-                                  color: isMe ? Colors.white : Colors.black),
+                                color: isMe ? Colors.white : Colors.black,
+                              ),
                             ),
                           ],
                         ),
@@ -135,13 +145,10 @@ class _ChatScreenState extends State<ChatScreen> {
             ),
           ),
           Container(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: BoxDecoration(
               color: Colors.white,
-              boxShadow: [
-                BoxShadow(color: Colors.black12, blurRadius: 4)
-              ],
+              boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 4)],
             ),
             child: Row(
               children: [
@@ -152,7 +159,9 @@ class _ChatScreenState extends State<ChatScreen> {
                       hintText: 'Nhập tin nhắn...',
                       border: OutlineInputBorder(),
                       contentPadding: EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 8),
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
                     ),
                     onSubmitted: (_) => _send(),
                   ),
